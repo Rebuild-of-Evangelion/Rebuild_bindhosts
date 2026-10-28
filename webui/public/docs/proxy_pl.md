@@ -63,8 +63,8 @@ Reguły pobrane z `sources.txt` trafiają do produktu, ale nie można ich edytow
 WebUI. Strona zapytań oznacza je tagiem `SRC` i nie oferuje przycisku usuwania.
 Aby wyłączyć pobraną regułę, usuń jej URL z `sources.txt`.
 
-W widoku Hosts wiersze `SRC` mają przycisk, ale on też niczego nie usuwa: dopisuje
-domenę do `hosts/whitelist.txt`, żeby kolejne przebudowanie ją pominęło.
+W widoku Hosts wiersze `SRC` też nie mają przycisku: pobranej reguły nie da się
+usunąć ze strony zapytań. Usuń jej URL z `sources.txt`.
 
 ## Biała i czarna lista
 

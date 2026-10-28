@@ -63,9 +63,8 @@ Las reglas obtenidas de `sources.txt` se fusionan en el producto pero no se pued
 editar en el WebUI. La página de consulta las marca con `SRC` y no ofrece botón de
 borrado. Para dejar de usar una regla descargada, quita su URL de `sources.txt`.
 
-La vista Hosts sí muestra un botón en las filas `SRC`, pero tampoco borra nada:
-añade el dominio a `hosts/whitelist.txt` para que la próxima reconstrucción lo
-omita.
+La vista Hosts tampoco muestra botón en las filas `SRC`: una regla descargada no
+se puede quitar desde la página de consulta. Quita su URL de `sources.txt`.
 
 ## Lista blanca y lista negra
 

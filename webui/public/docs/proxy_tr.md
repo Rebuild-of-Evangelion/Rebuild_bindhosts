@@ -62,9 +62,8 @@ düzenlenemez. Sorgu sayfası bunları `SRC` etiketiyle listeler ve silme düğm
 sunmaz. İndirilen bir kuralı devre dışı bırakmak için URL'sini `sources.txt`
 dosyasından çıkar.
 
-Hosts görünümünde `SRC` satırlarında bir düğme var ama o da hiçbir şey silmez:
-alan adını `hosts/whitelist.txt` dosyasına ekler, böylece sonraki yeniden
-oluşturma onu atlar.
+Hosts görünümünde de `SRC` satırlarında düğme yok: indirilen bir kural sorgu
+sayfasından kaldırılamaz. URL'sini `sources.txt` dosyasından çıkar.
 
 ## Beyaz liste ve kara liste
 

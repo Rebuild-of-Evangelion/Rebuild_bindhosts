@@ -61,8 +61,8 @@ Các quy tắc lấy từ `sources.txt` được hợp nhất vào sản phẩm 
 trong WebUI. Trang truy vấn gắn thẻ `SRC` cho chúng và không có nút xóa. Để ngừng
 dùng một quy tắc đã tải, hãy xóa URL của nó khỏi `sources.txt`.
 
-Chế độ xem Hosts có nút trên các dòng `SRC`, nhưng nút đó cũng không xóa gì: nó
-thêm tên miền vào `hosts/whitelist.txt` để lần dựng lại sau bỏ qua.
+Chế độ xem Hosts cũng không có nút trên các dòng `SRC`: không thể xóa quy tắc đã
+tải khỏi trang truy vấn. Hãy xóa URL của nó khỏi `sources.txt`.
 
 ## Danh sách trắng và danh sách đen
 

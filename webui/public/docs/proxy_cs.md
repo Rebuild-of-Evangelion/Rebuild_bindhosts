@@ -62,8 +62,8 @@ Pravidla ze `sources.txt` se sloučí do produktu, ale v WebUI je nelze upravova
 Stránka dotazů je označuje štítkem `SRC` a nenabízí tlačítko smazání. Chcete-li
 stažené pravidlo vypnout, odeberte jeho URL ze `sources.txt`.
 
-Zobrazení Hosts má u řádků `SRC` tlačítko, ale ani to nic nemaže: zapíše doménu do
-`hosts/whitelist.txt`, aby ji příští sestavení přeskočilo.
+Zobrazení Hosts také nemá u řádků `SRC` tlačítko: stažené pravidlo nelze ze stránky
+dotazů odstranit. Odeberte jeho URL ze `sources.txt`.
 
 ## Bílý a černý seznam
 

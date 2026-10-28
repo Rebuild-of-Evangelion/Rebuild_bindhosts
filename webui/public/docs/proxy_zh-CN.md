@@ -55,8 +55,8 @@ block   /ads/*
 查询页给它们标 `SRC`，不提供删除按钮。要停用某条下载来的规则，
 把它的 URL 从 `sources.txt` 里去掉。
 
-Hosts 查询页的 `SRC` 条目有个按钮，但那也不是删除——它把域名写进
-`hosts/whitelist.txt`，下次重建时跳过。
+Hosts 查询页的 `SRC` 条目也没有按钮：下载来的规则无法从查询页移除。
+要停用某条，把它的 URL 从 `sources.txt` 里去掉。
 
 ## 白名单与黑名单
 

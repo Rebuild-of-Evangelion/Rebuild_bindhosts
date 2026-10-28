@@ -64,9 +64,8 @@ modificabili nel WebUI. La pagina di query le contrassegna con `SRC` e non offre
 pulsante di eliminazione. Per disattivare una regola scaricata, rimuovi il suo URL
 da `sources.txt`.
 
-La vista Hosts mostra un pulsante sulle righe `SRC`, ma anche quello non elimina
-nulla: aggiunge il dominio a `hosts/whitelist.txt` così la prossima ricostruzione
-lo salta.
+Anche la vista Hosts non mostra pulsanti sulle righe `SRC`: una regola scaricata
+non può essere rimossa dalla pagina di query. Rimuovi il suo URL da `sources.txt`.
 
 ## Lista bianca e lista nera
 

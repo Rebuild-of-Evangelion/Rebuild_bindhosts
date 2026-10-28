@@ -64,9 +64,9 @@ aber nicht bearbeiten. Die Abfrageseite markiert sie mit `SRC` und bietet keine
 Löschschaltfläche. Um eine heruntergeladene Regel zu deaktivieren, entferne ihre
 URL aus `sources.txt`.
 
-Die Hosts-Ansicht zeigt bei `SRC`-Zeilen eine Schaltfläche, aber auch die löscht
-nichts — sie schreibt die Domain in `hosts/whitelist.txt`, damit der nächste
-Neuaufbau sie überspringt.
+Auch die Hosts-Ansicht zeigt bei `SRC`-Zeilen keine Schaltfläche: eine
+heruntergeladene Regel lässt sich nicht über die Abfrageseite entfernen.
+Entferne ihre URL aus `sources.txt`.
 
 ## Whitelist und Blacklist
 

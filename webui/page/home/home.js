@@ -262,10 +262,14 @@ function proxySourceOf(raw) {
  * @returns {Promise<void>}
  */
 async function getHosts() {
+    if (queryMode !== 'hosts') return;
     const hostList = document.querySelector('.host-list-item');
     hostList.innerHTML = '';
 
     const response = await fetch('link/hosts.txt', { cache: 'no-store' });
+    // Both queries share one list container; a stale response must not paint
+    // over the other view after the user switched tabs.
+    if (queryMode !== 'hosts') return;
     if (!response.ok) {
         hostList.innerHTML = getString('global_unsupported');
         return;
@@ -325,6 +329,15 @@ function loadMoreHosts(callback) {
             ? `<span class="src-badge ${src.toLowerCase()}">${src}</span>`
             : "";
 
+        // Same test sourceOf applies for SRC: not declared by the proxy rules and
+        // not written by the user. Recomputed here so the button does not depend
+        // on the badge result, which is null whenever the source index failed.
+        const isDownloaded = !domains.some(d => proxyDomains.has(d.toLowerCase()))
+                          && !domains.some(d => userDomains.has(d.toLowerCase()));
+        // Downloaded rules cannot be removed from here: a rebuild re-fetches them.
+        // Same treatment as proxy-declared hosts rows, no button and no swipe.
+        const hasButton = dataType !== 'custom' && !isDownloaded;
+
         const hostItem = document.createElement('div');
         hostItem.className = 'scrollable-list';
         hostItem.setAttribute('data-type', dataType);
@@ -338,19 +351,19 @@ function loadMoreHosts(callback) {
                 </div>
                 <div class="host-domain">${domains.join(' ')}</div>
             </div>
-            ${dataType !== 'custom' ? `
+            ${hasButton ? `
             <md-filled-icon-button class="remove-btn">
-                <md-icon><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg></md-icon>
+                <md-icon><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960"><path d="M277.37-111.87q-37.78 0-64.39-26.61t-26.61-64.39v-514.5h-45.5v-91H354.5v-45.5h250.52v45.5h214.11v91h-45.5v514.5q0 37.78-26.61 64.39t-64.39 26.61H277.37Zm78.33-168.37h85.5v-360h-85.5v360Zm163.1 0h85.5v-360h-85.5v360Z"/></svg></md-icon>
             </md-filled-icon-button>
             ` : ''}
         `;
 
         // Add event listener to remove button if it exists
-        if (dataType !== 'custom') {
+        if (hasButton) {
             const removeBtn = hostItem.querySelector('.remove-btn');
             removeBtn.onclick = (e) => handleRemove(e, domains);
         }
-        hostItem.onclick = () => {
+        if (hasButton) hostItem.onclick = () => {
             const isRTL = document.documentElement.getAttribute('dir') === 'rtl';
             hostItem.scrollTo({
                 left: isRTL ? -hostItem.scrollWidth : hostItem.scrollWidth,
@@ -405,7 +418,8 @@ const PROXY_ACTION_ORDER = { mock: 0, forward: 1, block: 2 };
  * @returns {Promise<void>}
  */
 async function getProxyRules() {
-    const hostList = document.querySelector('.host-list-item');
+    if (queryMode !== 'proxy') return;
+    const hostList = document.querySelector('.proxy-list-item');
     hostList.innerHTML = '';
 
     // The product file survives a disable, but its rules are not in effect, so hide them
@@ -418,6 +432,7 @@ async function getProxyRules() {
     }
 
     const text = await fetchText('link/PERSISTENT_DIR/proxy.rules', `${basePath}/proxy.rules`).catch(() => '');
+    if (queryMode !== 'proxy') return;
 
     proxyRules = text.split('\n')
         .map(line => line.trim())
@@ -442,7 +457,7 @@ async function getProxyRules() {
  * @returns {void}
  */
 function renderProxyRules(rules) {
-    const hostList = document.querySelector('.host-list-item');
+    const hostList = document.querySelector('.proxy-list-item');
     hostList.innerHTML = '';
 
     if (rules.length === 0) {
@@ -536,6 +551,10 @@ function switchQueryMode(mode) {
 
     const inputBox = document.getElementById('query-input');
     if (inputBox) inputBox.value = '';
+
+    // Each view owns its own list container, so nothing can leak between them.
+    document.querySelector('.host-list-item').hidden = mode !== 'hosts';
+    document.querySelector('.proxy-list-item').hidden = mode !== 'proxy';
 
     if (mode === 'proxy') {
         getProxyRules();

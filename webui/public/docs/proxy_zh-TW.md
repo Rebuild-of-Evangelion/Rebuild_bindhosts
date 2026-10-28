@@ -55,8 +55,8 @@ block   /ads/*
 查詢頁給它們標 `SRC`，不提供刪除按鈕。要停用某條下載來的規則，
 把它的 URL 從 `sources.txt` 裡去掉。
 
-Hosts 查詢頁的 `SRC` 條目有個按鈕，但那也不是刪除——它把網域寫進
-`hosts/whitelist.txt`，下次重建時跳過。
+Hosts 查詢頁的 `SRC` 條目也沒有按鈕：下載來的規則無法從查詢頁移除。
+要停用某條，把它的 URL 從 `sources.txt` 裡去掉。
 
 ## 白名單與黑名單
 

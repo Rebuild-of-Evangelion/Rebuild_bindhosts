@@ -63,8 +63,8 @@ Regler från `sources.txt` slås samman i produkten men kan inte redigeras i Web
 Förfrågningssidan markerar dem med `SRC` och erbjuder ingen raderingsknapp. För att
 sluta använda en nedladdad regel tar du bort dess URL från `sources.txt`.
 
-Hosts-vyn visar en knapp på `SRC`-rader, men inte heller den raderar något: den
-lägger till domänen i `hosts/whitelist.txt` så att nästa ombyggnad hoppar över den.
+Inte heller Hosts-vyn visar någon knapp på `SRC`-rader: en nedladdad regel kan inte
+tas bort från förfrågningssidan. Ta bort dess URL från `sources.txt`.
 
 ## Vitlista och svartlista
 

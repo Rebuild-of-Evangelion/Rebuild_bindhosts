@@ -63,9 +63,8 @@ Aturan dari `sources.txt` digabungkan ke produk tetapi tidak dapat diedit di Web
 Halaman kueri menandainya dengan `SRC` dan tidak menyediakan tombol hapus. Untuk
 menonaktifkan aturan yang diunduh, hapus URL-nya dari `sources.txt`.
 
-Tampilan Hosts menampilkan tombol pada baris `SRC`, tetapi tombol itu juga tidak
-menghapus apa pun: ia menambahkan domain ke `hosts/whitelist.txt` agar pembangunan
-ulang berikutnya melewatinya.
+Tampilan Hosts juga tidak menampilkan tombol pada baris `SRC`: aturan yang diunduh
+tidak dapat dihapus dari halaman kueri. Hapus URL-nya dari `sources.txt`.
 
 ## Whitelist dan blacklist
 

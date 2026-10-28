@@ -64,9 +64,9 @@ peuvent pas être modifiées dans le WebUI. La page de requête les marque `SRC`
 ne propose pas de bouton de suppression. Pour désactiver une règle téléchargée,
 retirez son URL de `sources.txt`.
 
-La vue Hosts affiche bien un bouton sur les lignes `SRC`, mais il ne supprime rien
-non plus : il ajoute le domaine à `hosts/whitelist.txt` pour que la prochaine
-reconstruction l'ignore.
+La vue Hosts n'affiche pas non plus de bouton sur les lignes `SRC` : une règle
+téléchargée ne peut pas être retirée depuis la page de requête. Retirez son URL
+de `sources.txt`.
 
 ## Liste blanche et liste noire
 

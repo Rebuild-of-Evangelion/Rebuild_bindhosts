@@ -132,7 +132,8 @@
     word-wrap: break-word;
 }
 
-.host-list-item {
+.host-list-item,
+.proxy-list-item {
     flex-shrink: 1;
     overflow-y: auto;
 }

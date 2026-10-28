@@ -63,8 +63,8 @@ Rules fetched from `sources.txt` are merged into the product but cannot be edite
 in the WebUI. The query page lists them with an `SRC` tag and offers no delete
 button. To stop using a downloaded rule, remove its URL from `sources.txt`.
 
-The Hosts view does show a button on `SRC` rows, but it does not delete the rule
-either — it adds the domain to `hosts/whitelist.txt` so the next rebuild skips it.
+The Hosts view shows no button on `SRC` rows either: a downloaded rule cannot be
+removed from the query page. To stop using one, remove its URL from `sources.txt`.
 
 ## Whitelist and blacklist
 
