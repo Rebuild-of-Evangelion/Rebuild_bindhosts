@@ -111,4 +111,11 @@
     <string name="backup_restore_invalid_config">無効な bindhosts の設定です</string>
     <string name="backup_restore_restored">設定のリストアに成功</string>
     <string name="backup_restore_restore_fail">設定のリストアに失敗</string>
+    <string name="query_proxy_action">アクション</string>
+    <string name="query_proxy_path">パス</string>
+    <string name="query_proxy_title">Proxy クエリ</string>
+    <string name="query_proxy_empty">適用済みの proxy ルールはまだありません</string>
+    <string name="import_reject_in_hosts">これは proxy ルールファイルです。Proxy ビューでインポートしてください</string>
+    <string name="import_reject_in_proxy">これは hosts ルールファイルです。Hosts ビューでインポートしてください</string>
+    <string name="more_proxy">Proxy ルール</string>
 </resources>

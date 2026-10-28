@@ -123,4 +123,11 @@
     <string name="backup_restore_invalid_config">تكوين bindhosts غير صالح</string>
     <string name="backup_restore_restored">تم استعادة التكوين بنجاح</string>
     <string name="backup_restore_restore_fail">فشل استعادة التكوين</string>
+    <string name="query_proxy_action">إجراء</string>
+    <string name="query_proxy_path">المسار</string>
+    <string name="query_proxy_title">استعلام الوكيل</string>
+    <string name="query_proxy_empty">لم يتم تطبيق أي قواعد وكيل بعد</string>
+    <string name="import_reject_in_hosts">هذا ملف قواعد وكيل، استورده في عرض Proxy</string>
+    <string name="import_reject_in_proxy">هذا ملف قواعد hosts، استورده في عرض Hosts</string>
+    <string name="more_proxy">قواعد الوكيل</string>
 </resources>

@@ -45,6 +45,12 @@ pm path me.itejo443.bindhosts > /dev/null 2>&1 || [ -f "$PERSISTENT_DIR/bindhost
     if detect_key_press; then
         echo "[+] Installing BindHosts-app..."
 	busybox chmod +x "$MODPATH/bindhosts-app.sh"
+# proxy: daemon binary and watchdog script
+[ -f "$MODPATH/bin/bindhosts-proxy" ] && busybox chmod +x "$MODPATH/bin/bindhosts-proxy"
+# Backup: the watchdog restores the main binary from here if it breaks.
+[ -f "$MODPATH/bin/bindhosts-proxy.bak" ] && busybox chmod +x "$MODPATH/bin/bindhosts-proxy.bak"
+[ -f "$MODPATH/proxy-cert.sh" ] && busybox chmod +x "$MODPATH/proxy-cert.sh"
+[ -f "$MODPATH/proxy-daemon.sh" ] && busybox chmod +x "$MODPATH/proxy-daemon.sh"
         sh "$MODPATH/bindhosts-app.sh"
     fi
 }
@@ -57,6 +63,12 @@ mkdir -p "$MODPATH/system/etc"
 # set permissions to bindhosts.sh
 busybox chmod +x "$MODPATH/bindhosts.sh"
 busybox chmod +x "$MODPATH/bindhosts-app.sh"
+# proxy: daemon binary and watchdog script
+[ -f "$MODPATH/bin/bindhosts-proxy" ] && busybox chmod +x "$MODPATH/bin/bindhosts-proxy"
+# Backup: the watchdog restores the main binary from here if it breaks.
+[ -f "$MODPATH/bin/bindhosts-proxy.bak" ] && busybox chmod +x "$MODPATH/bin/bindhosts-proxy.bak"
+[ -f "$MODPATH/proxy-cert.sh" ] && busybox chmod +x "$MODPATH/proxy-cert.sh"
+[ -f "$MODPATH/proxy-daemon.sh" ] && busybox chmod +x "$MODPATH/proxy-daemon.sh"
 # symlink bindhosts to manager path
 # for ez termux usage
 manager_paths="/data/adb/ap/bin /data/adb/ksu/bin"
@@ -94,13 +106,46 @@ fi
 
 # normal flow for persistence
 # move over our files, remove after
-files="blacklist.txt custom.txt sources.txt whitelist.txt sources_whitelist.txt"
-for i in $files ; do
-	if [ ! -f "/data/adb/bindhosts/$i" ] ; then
-		cat "$MODPATH/$i" > "$PERSISTENT_DIR/$i"
+
+# Rule files are grouped by type.
+mkdir -p "$PERSISTENT_DIR/hosts/imported" "$PERSISTENT_DIR/hosts/cache"
+mkdir -p "$PERSISTENT_DIR/proxy/imported" "$PERSISTENT_DIR/proxy/cache"
+
+# Migrate flat fixed rule files from older builds into hosts/.
+for i in custom blacklist whitelist sources sources_whitelist ; do
+	# Oldest layout used custom.txt.
+	if [ -f "$PERSISTENT_DIR/$i.txt" ] && [ ! -f "$PERSISTENT_DIR/hosts/$i.txt" ] ; then
+		mv -f "$PERSISTENT_DIR/$i.txt" "$PERSISTENT_DIR/hosts/$i.txt"
+		echo "[+] migrated $i.txt -> hosts/$i.txt"
 	fi
-	rm "$MODPATH/$i"
+	# Intermediate builds used the hosts_ prefix.
+	if [ -f "$PERSISTENT_DIR/hosts_$i.txt" ] && [ ! -f "$PERSISTENT_DIR/hosts/$i.txt" ] ; then
+		mv -f "$PERSISTENT_DIR/hosts_$i.txt" "$PERSISTENT_DIR/hosts/$i.txt"
+		echo "[+] migrated hosts_$i.txt -> hosts/$i.txt"
+	fi
 done
+
+# Migrate imported rule files into hosts/imported/, stripping legacy prefixes.
+for f in "$PERSISTENT_DIR"/custom_*.txt* "$PERSISTENT_DIR"/hosts_custom_*.txt* ; do
+	[ -f "$f" ] || continue
+	base="${f##*/}"
+	name="${base#hosts_custom_}"
+	[ "$name" = "$base" ] && name="${base#custom_}"
+	if [ ! -f "$PERSISTENT_DIR/hosts/imported/$name" ] ; then
+		mv -f "$f" "$PERSISTENT_DIR/hosts/imported/$name"
+		echo "[+] migrated $base -> hosts/imported/$name"
+	fi
+done
+
+# Default rule files: flat in the module root, copied to the persistent dir then removed.
+for i in custom blacklist whitelist sources sources_whitelist ; do
+	[ -f "$PERSISTENT_DIR/hosts/$i.txt" ] || cat "$MODPATH/$i.txt" > "$PERSISTENT_DIR/hosts/$i.txt"
+	rm -f "$MODPATH/$i.txt"
+done
+
+[ -f "$PERSISTENT_DIR/proxy/custom.txt" ] || cat "$MODPATH/proxy_custom.txt" > "$PERSISTENT_DIR/proxy/custom.txt"
+[ -f "$PERSISTENT_DIR/proxy/sources.txt" ] || cat "$MODPATH/proxy_sources.txt" > "$PERSISTENT_DIR/proxy/sources.txt"
+rm -f "$MODPATH/proxy_custom.txt" "$MODPATH/proxy_sources.txt"
 
 # webui custom css config
 if [ ! -d "$PERSISTENT_DIR/.webui_config" ] || [ ! -f "$PERSISTENT_DIR/.webui_config/custom.css" ]; then

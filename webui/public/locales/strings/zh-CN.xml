@@ -24,6 +24,8 @@
     <string name="query_host_ip">IP</string>
     <string name="query_host_type">类型</string>
     <string name="query_host_domain">域名</string>
+    <string name="query_proxy_action">动作</string>
+    <string name="query_proxy_path">路径</string>
     <string name="query_remove_prompt">已移除 %s</string>
     <string name="query_remove_error">移除失败 %s</string>
     <!-- Control Panel -->
@@ -119,4 +121,14 @@
     <string name="backup_restore_invalid_config">无效的 bindhosts 配置</string>
     <string name="backup_restore_restored">配置恢复成功</string>
     <string name="backup_restore_restore_fail">配置恢复失败</string>
+    <string name="draft_dialog_message">有未应用的改动，是否保留？</string>
+    <string name="draft_dialog_keep">保留</string>
+    <string name="draft_dialog_discard">丢弃</string>
+    <string name="draft_discarded">未应用的改动已丢弃</string>
+    <string name="footer_rules">Rules</string>
+    <string name="query_proxy_title">Proxy 查询</string>
+    <string name="query_proxy_empty">暂无已应用的 proxy 规则</string>
+    <string name="import_reject_in_hosts">这是 proxy 规则文件，不能在 Hosts 视图导入</string>
+    <string name="import_reject_in_proxy">这是 hosts 规则文件，不能在 Proxy 视图导入</string>
+    <string name="more_proxy">Proxy 规则</string>
 </resources>

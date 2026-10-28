@@ -123,4 +123,11 @@
     <string name="backup_restore_invalid_config">Cấu hình bindhosts này không hợp lệ</string>
     <string name="backup_restore_restored">Đã khôi phục cấu hình</string>
     <string name="backup_restore_restore_fail">Nhập cấu hình thất bại</string>
+    <string name="query_proxy_action">Hành động</string>
+    <string name="query_proxy_path">Đường dẫn</string>
+    <string name="query_proxy_title">Truy vấn proxy</string>
+    <string name="query_proxy_empty">Chưa áp dụng quy tắc proxy nào</string>
+    <string name="import_reject_in_hosts">Đây là tệp quy tắc proxy, hãy nhập trong chế độ xem Proxy</string>
+    <string name="import_reject_in_proxy">Đây là tệp quy tắc hosts, hãy nhập trong chế độ xem Hosts</string>
+    <string name="more_proxy">Quy tắc proxy</string>
 </resources>

@@ -21,6 +21,13 @@
                 <span id="title">bindhosts </span>
                 <span id="version-text"></span>
             </div>
+            <div class="rules-switcher" id="rules-switcher">
+                <button type="button" class="rules-tab" id="tab-hosts">Hosts</button>
+                <md-checkbox id="check-hosts" touch-target="wrapper"></md-checkbox>
+                <div class="rules-switcher-spacer"></div>
+                <md-checkbox id="check-proxy" touch-target="wrapper"></md-checkbox>
+                <button type="button" class="rules-tab" id="tab-proxy">Proxy</button>
+            </div>
             <div class="file-name-editor">
                 <span>custom</span>
                 <input type="text" id="file-name-input" autocapitalize="off" oninput="replaceSpaces(this)">
@@ -83,7 +90,7 @@
             <md-icon><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"><path d="M160-120q-33 0-56.5-23.5T80-200v-560q0-33 23.5-56.5T160-840h200q33 0 56.5 23.5T440-760v560q0 33-23.5 56.5T360-120H160Zm440 0q-33 0-56.5-23.5T520-200v-560q0-33 23.5-56.5T600-840h200q33 0 56.5 23.5T880-760v560q0 33-23.5 56.5T800-120H600Zm-440-80h200v-560H160v560Zm440 0h200v-560H600v560ZM200-360h120v-80H200v80Zm440 0h120v-80H640v80ZM200-480h120v-80H200v80Zm440 0h120v-80H640v80ZM200-600h120v-80H200v80Zm440 0h120v-80H640v80ZM160-200h200-200Zm440 0h200-200Z"/></svg></md-icon>
             <md-icon slot="selected"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"><path d="M160-120q-33 0-56.5-23.5T80-200v-560q0-33 23.5-56.5T160-840h200q33 0 56.5 23.5T440-760v560q0 33-23.5 56.5T360-120H160Zm440 0q-33 0-56.5-23.5T520-200v-560q0-33 23.5-56.5T600-840h200q33 0 56.5 23.5T880-760v560q0 33-23.5 56.5T800-120H600ZM200-360h120v-80H200v80Zm440 0h120v-80H640v80ZM200-480h120v-80H200v80Zm440 0h120v-80H640v80ZM200-600h120v-80H200v80Zm440 0h120v-80H640v80Z"/></svg></md-icon>
             <div class="bottom-bar-item-text">
-                <span data-i18n="footer_hosts"></span>
+                <span data-i18n="footer_rules"></span>
             </div>
         </div>
         <div class="bottom-bar-item" id="more" page="more">
@@ -427,6 +434,17 @@
                 <md-text-button class="close-btn" data-i18n="global_close"></md-text-button>
             </div>
         </md-dialog>
+    </div>
+
+    <!-- Unapplied changes dialog, styled after the action FAB -->
+    <div id="draft-scrim" class="draft-scrim">
+        <div class="draft-dialog" role="alertdialog" aria-modal="true">
+            <p class="draft-dialog-text" id="draft-dialog-text"></p>
+            <div class="draft-dialog-actions">
+                <button type="button" class="draft-dialog-btn" id="draft-discard-btn"></button>
+                <button type="button" class="draft-dialog-btn" id="draft-keep-btn"></button>
+            </div>
+        </div>
     </div>
 </body>
 </html>

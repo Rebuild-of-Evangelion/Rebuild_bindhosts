@@ -123,4 +123,11 @@
     <string name="backup_restore_invalid_config">Konfig bindhosts tidak valid</string>
     <string name="backup_restore_restored">Konfig berhasil dipulihkan</string>
     <string name="backup_restore_restore_fail">Gagal memulihkan konfig</string>
+    <string name="query_proxy_action">Aksi</string>
+    <string name="query_proxy_path">Jalur</string>
+    <string name="query_proxy_title">Kueri Proxy</string>
+    <string name="query_proxy_empty">Belum ada aturan proxy yang diterapkan</string>
+    <string name="import_reject_in_hosts">Ini adalah file aturan proxy, impor di tampilan Proxy</string>
+    <string name="import_reject_in_proxy">Ini adalah file aturan hosts, impor di tampilan Hosts</string>
+    <string name="more_proxy">Aturan proxy</string>
 </resources>

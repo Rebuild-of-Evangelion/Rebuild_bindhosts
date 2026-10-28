@@ -6,11 +6,11 @@ export let developerOption = false;
 export function setDeveloperOption(value) { developerOption = value; }
 
 export const filePaths = {
-    custom: 'custom.txt',
-    sources: 'sources.txt',
-    blacklist: 'blacklist.txt',
-    whitelist: 'whitelist.txt',
-    sources_whitelist: 'sources_whitelist.txt',
+    custom: 'hosts/custom.txt',
+    sources: 'hosts/sources.txt',
+    blacklist: 'hosts/blacklist.txt',
+    whitelist: 'hosts/whitelist.txt',
+    sources_whitelist: 'hosts/sources_whitelist.txt',
     customCSS: '.webui_config/custom.css',
 };
 

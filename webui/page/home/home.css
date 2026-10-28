@@ -73,27 +73,53 @@
     mask-image: linear-gradient(black 0%, black calc(100% - 16px), transparent 100%);
 }
 
+/* Both pages share one column model: fixed 7.5em first column, 8px gap, second fills */
 .host-list-header,
 .host-list-row {
     display: flex;
-    align-items: center;
     min-width: 100%;
-    min-height: 32px;
     flex-grow: 1;
+    gap: 8px;
 }
 
 .host-list-header {
+    align-items: center;
+    min-height: 32px;
     flex-shrink: 0;
     margin-top: 5px;
     font-weight: bold;
     border-bottom: 2px solid var(--md-sys-color-outline);
 }
 
+/* Tag sits below the IP; row height follows content with no floor, or untagged rows leave a gap */
+.host-list-row {
+    align-items: flex-start;
+    padding: 2px 0;
+}
+
 .host-list-header-ip,
 .host-ip {
-    width: 7.5em;
     font-size: 0.9em;
     flex-shrink: 0;
+    box-sizing: border-box;
+    word-break: break-all;
+    word-wrap: break-word;
+}
+
+.host-list-header-ip {
+    width: 7.5em;
+}
+
+/* IP on top, tag below, both left-aligned; the tag only grows its own row */
+.host-ip {
+    width: 7.5em;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+}
+
+.host-ip-text {
     word-break: break-all;
     word-wrap: break-word;
 }
@@ -102,7 +128,6 @@
 .host-domain {
     flex-grow: 1;
     font-size: 0.9em;
-    padding-left: 3px;
     word-break: break-all;
     word-wrap: break-word;
 }
@@ -154,4 +179,110 @@
 .radio-label small {
     color: var(--md-sys-color-outline);
     font-size: 0.85em;
+}
+
+/* Host / Proxy query switcher */
+.query-switcher {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2px;
+    margin-bottom: 10px;
+}
+
+.query-tab {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 16px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 1.05em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.query-tab.active {
+    background: var(--md-sys-color-surface-container-high);
+}
+
+.query-tab:active {
+    background: rgba(128, 128, 128, 0.18);
+}
+
+/* Proxy rows carry a path, not a domain, so there is no favicon slot */
+.proxy-rule-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 0.9em;
+    word-break: break-all;
+}
+
+/* First column matches the hosts IP column so both pages start at the same x */
+.proxy-action-col {
+    width: 7.5em;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+}
+
+.proxy-rule-action {
+    flex-shrink: 0;
+    padding: 1px 8px;
+    border-radius: 8px;
+    font-size: 0.85em;
+    font-weight: 500;
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+}
+
+/* One colour per action; M3 on-* tokens keep contrast in dark mode */
+.proxy-rule-action[data-action="mock"] {
+    background: var(--md-sys-color-tertiary-container);
+    color: var(--md-sys-color-on-tertiary-container);
+}
+
+.proxy-rule-action[data-action="forward"] {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+}
+
+.proxy-rule-action[data-action="block"] {
+    background: var(--md-sys-color-error-container);
+    color: var(--md-sys-color-on-error-container);
+}
+
+.proxy-rule-path {
+    flex-grow: 1;
+}
+
+/* Source pill. Class name = lowercase tag (a value from SOURCE_TAGS);
+   add a colour here when adding a tag. SRC is grey, PXY is purple. */
+.src-badge {
+    flex-shrink: 0;
+    box-sizing: border-box;
+    min-width: 38px;
+    padding: 1px 6px;
+    border-radius: 6px;
+    font-size: 0.78em;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.5;
+    background: transparent;
+    color: transparent;
+}
+
+.src-badge.src {
+    background: var(--md-sys-color-surface-variant);
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.src-badge.pxy {
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
 }

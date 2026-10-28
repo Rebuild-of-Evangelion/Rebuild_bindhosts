@@ -25,6 +25,8 @@
     <string name="query_host_ip">IP</string>
     <string name="query_host_type">Type</string>
     <string name="query_host_domain">Domain</string>
+    <string name="query_proxy_action">Action</string>
+    <string name="query_proxy_path">Path</string>
     <string name="query_remove_prompt">Whitelisted %s</string>
     <string name="query_remove_error">Failed to whitelist %s</string>
     <!-- Control Panel -->
@@ -123,4 +125,14 @@
     <string name="backup_restore_invalid_config">Invalid bindhosts config</string>
     <string name="backup_restore_restored">Config restored succesfully</string>
     <string name="backup_restore_restore_fail">Fail to restore config</string>
+    <string name="draft_dialog_message">You have unapplied changes. Keep them?</string>
+    <string name="draft_dialog_keep">Keep</string>
+    <string name="draft_dialog_discard">Discard</string>
+    <string name="draft_discarded">Unapplied changes discarded</string>
+    <string name="footer_rules">Rules</string>
+    <string name="query_proxy_title">Proxy Query</string>
+    <string name="query_proxy_empty">No proxy rules applied yet</string>
+    <string name="import_reject_in_hosts">This is a proxy rule file, import it in the Proxy view</string>
+    <string name="import_reject_in_proxy">This is a hosts rule file, import it in the Hosts view</string>
+    <string name="more_proxy">Proxy rules</string>
 </resources>

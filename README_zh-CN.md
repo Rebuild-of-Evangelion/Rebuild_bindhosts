@@ -12,6 +12,7 @@
 - 可与 Adaway 共存
 - 通过 Manager mount、bind mount 和 OverlayFS 实现的 Systemless hosts
 - 所用重定向方法：ZN-hostsredirect、hosts_file_redirect、open_redirect
+- 本地 TLS 反代：按 URL 路径改写或拦截接口响应
 
 ## 支持的 Root 管理器
 

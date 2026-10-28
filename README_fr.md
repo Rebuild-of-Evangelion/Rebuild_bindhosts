@@ -12,6 +12,7 @@ Entièrement autonome, mise à jour automatique.
 - coexistence possible avec Adaway
 - Hébergeurs sans système via le montage du manager, le montage du lien, et OverlayFS
 - Méthodes de redirection : ZN-hostsredirect, hosts_file_redirect, open_redirect
+- Proxy TLS local : réécrire ou bloquer les réponses d'API par chemin d'URL
 
 ## Gestionnaires Root pris en charge
 

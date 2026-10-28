@@ -2,6 +2,7 @@ import { exec } from 'kernelsu-alt';
 import { showPrompt, reboot, basePath, moduleDirectory, setDeveloperOption, developerOption, fetchText, updateUIVisibility } from '../../utils/util.js';
 import { setupDocsMenu } from '../../utils/docs.js';
 import { getString } from '../../utils/language.js';
+import { consumeHostsStale } from '../../utils/hostsState.js';
 import modes from './modes.json';
 
 let clickCount = 0, clickTimeout = 0;
@@ -162,6 +163,100 @@ function setupModeBtn() {
 let hostLines = [], originalHostLines = [], currentIndex = 0, initialHeight = 0;
 const batchSize = 30;
 
+// ---- Source index ---------------------------------------------------------
+// The hosts file is a merged result and carries no origin info. Checking every
+// line against the big cache/sources.txt would stall the query page, so do the
+// opposite: downloaded content is the overwhelming majority, treat it as SRC by
+// default and only check two small sets — domains the user wrote explicitly and
+// domains declared by the proxy rules.
+// Source tags. Adding a new one only needs a value here: rendering derives the
+// lowercase CSS class (.src-badge.xxx) and search derives the "#xxx" keyword.
+const SOURCE_TAGS = ['SRC', 'PXY'];
+const [TAG_SRC, TAG_PXY] = SOURCE_TAGS;
+
+let proxyDomains = new Set();
+let userDomains = new Set();
+let userProxyRules = new Set();
+let sourceIndexOk = false;
+
+/**
+ * Build the source index from the small rule files in a single exec call.
+ * @returns {Promise<void>}
+ */
+async function loadSourceIndex() {
+    const nextProxy = new Set();
+    const nextUser = new Set();
+    const nextProxyRules = new Set();
+    let ok = false;
+
+    // proxy side: lines starting with a digit are hosts lines and their domains
+    // go into proxyDomains; the rest are mock / forward / block rules kept whole
+    try {
+        const { stdout } = await exec(
+            `cat "${basePath}/proxy/custom.txt" "${basePath}/proxy/imported/"*.txt 2>/dev/null`);
+        (stdout || "").split("\n").forEach(raw => {
+            const line = raw.replace(/^disabled\|/, "").trim();
+            if (!line || line.startsWith("#")) return;
+            const parts = line.split(/\s+/);
+            if (/^[0-9]/.test(parts[0])) {
+                parts.slice(1).forEach(d => nextProxy.add(d.toLowerCase()));
+            } else {
+                nextProxyRules.add(line);
+            }
+        });
+        ok = true;
+    } catch {
+        // ignore when the proxy directory does not exist yet
+    }
+
+    // hosts side: domains the user wrote; their presence means "do not tag"
+    try {
+        const { stdout } = await exec(
+            `cat "${basePath}/hosts/custom.txt" "${basePath}/hosts/imported/"*.txt ` +
+            `"${basePath}/hosts/whitelist.txt" "${basePath}/hosts/blacklist.txt" 2>/dev/null`);
+        (stdout || "").split("\n").forEach(raw => {
+            const line = raw.replace(/^disabled\|/, "").trim();
+            if (!line || line.startsWith("#")) return;
+            const parts = line.split(/\s+/);
+            if (parts.length < 2) return;
+            parts.slice(1).forEach(d => nextUser.add(d.toLowerCase()));
+        });
+        ok = true;
+    } catch {
+        // ignore
+    }
+
+    proxyDomains = nextProxy;
+    userDomains = nextUser;
+    userProxyRules = nextProxyRules;
+    sourceIndexOk = ok;
+}
+
+/**
+ * Determine the origin of a hosts line
+ * @param {string[]} domains - domains on that line
+ * @returns {string|null} a value from SOURCE_TAGS, null means user-written
+ */
+function sourceOf(domains) {
+    if (!sourceIndexOk) return null;
+    const list = domains.map(d => d.toLowerCase());
+    if (list.some(d => proxyDomains.has(d))) return TAG_PXY;
+    if (list.some(d => userDomains.has(d))) return null;
+    return TAG_SRC;
+}
+
+/**
+ * Origin tag for one line of the proxy product
+ * @param {string} raw - raw product line
+ * @returns {string|null} null means user-written, do not tag
+ */
+function proxySourceOf(raw) {
+    if (!sourceIndexOk) return null;
+    if (userProxyRules.has(raw)) return null;
+    return TAG_SRC;
+}
+
+
 /**
  * Get hosts from hosts.txt and display them in the UI
  * @returns {Promise<void>}
@@ -170,7 +265,7 @@ async function getHosts() {
     const hostList = document.querySelector('.host-list-item');
     hostList.innerHTML = '';
 
-    const response = await fetch('link/hosts.txt');
+    const response = await fetch('link/hosts.txt', { cache: 'no-store' });
     if (!response.ok) {
         hostList.innerHTML = getString('global_unsupported');
         return;
@@ -220,6 +315,16 @@ function loadMoreHosts(callback) {
     for (let i = 0; i < batchSize && currentIndex < hostLines.length; i++, currentIndex++) {
         const [hostIp, ...domains] = hostLines[currentIndex];
         const dataType = hostIp === "0.0.0.0" ? "block" : "custom";
+
+        // The two localhost lines are infrastructure, not any source.
+        // Everything else is tagged SRC / PXY; the badge takes its own line and
+        // is only rendered when there is a source, never as a placeholder.
+        const isLocalhost = domains.every(d => d === "localhost");
+        const src = isLocalhost ? null : sourceOf(domains);
+        const badge = src
+            ? `<span class="src-badge ${src.toLowerCase()}">${src}</span>`
+            : "";
+
         const hostItem = document.createElement('div');
         hostItem.className = 'scrollable-list';
         hostItem.setAttribute('data-type', dataType);
@@ -227,7 +332,10 @@ function loadMoreHosts(callback) {
         // Add remove button if dataType is not 'custom'
         hostItem.innerHTML = `
             <div class="host-list-row">
-                <div class="host-ip">${hostIp}</div>
+                <div class="host-ip">
+                    <span class="host-ip-text">${hostIp}</span>
+                    ${badge}
+                </div>
                 <div class="host-domain">${domains.join(' ')}</div>
             </div>
             ${dataType !== 'custom' ? `
@@ -282,8 +390,166 @@ async function handleRemove(event, domains) {
  * Setup search functionality
  * @returns {void}
  */
+// ---- Host / Proxy query ---------------------------------------------------
+// The hosts query reads the generated hosts file; the proxy query reads the
+// merged product. They share one search box, but the proxy side is read-only
+// and offers no delete button.
+
+let queryMode = 'hosts';
+let proxyRules = [];
+
+const PROXY_ACTION_ORDER = { mock: 0, forward: 1, block: 2 };
+
+/**
+ * Read and render the proxy product
+ * @returns {Promise<void>}
+ */
+async function getProxyRules() {
+    const hostList = document.querySelector('.host-list-item');
+    hostList.innerHTML = '';
+
+    // The product file survives a disable, but its rules are not in effect, so hide them
+    const state = await fetchText('link/PERSISTENT_DIR/rules_state', `${basePath}/rules_state`).catch(() => '');
+    const enabled = (state || '').split('\n').some(line => line.trim() === 'proxy=1');
+    if (!enabled) {
+        proxyRules = [];
+        renderProxyRules(proxyRules);
+        return;
+    }
+
+    const text = await fetchText('link/PERSISTENT_DIR/proxy.rules', `${basePath}/proxy.rules`).catch(() => '');
+
+    proxyRules = text.split('\n')
+        .map(line => line.trim())
+        .filter(line => line && !line.startsWith('#'))
+        .map(line => {
+            const action = line.split(/\s+/)[0];
+            const rest = line.slice(action.length).trim();
+            return { action, rest, raw: line };
+        })
+        .filter(rule => rule.action in PROXY_ACTION_ORDER)
+        .sort((a, b) =>
+            PROXY_ACTION_ORDER[a.action] - PROXY_ACTION_ORDER[b.action]
+            || a.rest.localeCompare(b.rest)
+        );
+
+    renderProxyRules(proxyRules);
+}
+
+/**
+ * Render the proxy rule list
+ * @param {{action: string, rest: string}[]} rules
+ * @returns {void}
+ */
+function renderProxyRules(rules) {
+    const hostList = document.querySelector('.host-list-item');
+    hostList.innerHTML = '';
+
+    if (rules.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'proxy-rule-row';
+        empty.textContent = getString('query_proxy_empty');
+        hostList.appendChild(empty);
+        return;
+    }
+
+    rules.forEach(rule => {
+        const row = document.createElement('div');
+        row.className = 'proxy-rule-row';
+
+        // Action and source tag share one column, the tag sits below the action
+        const col = document.createElement('div');
+        col.className = 'proxy-action-col';
+
+        const badge = document.createElement('span');
+        badge.className = 'proxy-rule-action';
+        badge.dataset.action = rule.action;
+        badge.textContent = rule.action;
+        col.appendChild(badge);
+
+        // Lines from downloaded rule sets get SRC; user-written ones stay untagged
+        const srcTag = proxySourceOf(rule.raw);
+        if (srcTag) {
+            const src = document.createElement('span');
+            src.className = `src-badge ${srcTag.toLowerCase()}`;
+            src.textContent = srcTag;
+            col.appendChild(src);
+        }
+
+        row.appendChild(col);
+
+        const text = document.createElement('span');
+        text.className = 'proxy-rule-path';
+        text.textContent = rule.rest;
+
+        row.appendChild(text);
+        hostList.appendChild(row);
+        // Match the hosts query page: every row is followed by a divider
+        hostList.appendChild(document.createElement("md-divider"));
+    });
+}
+
+/**
+ * Header follows the query target.
+ * A hosts row reads `127.0.0.1  api.example.com`, labelled "IP | Domain".
+ * A proxy row reads `[mock] /run-front/...`, labelled "Action | Path".
+ */
+const QUERY_HEADERS = {
+    hosts: ['query_host_ip', 'query_host_domain'],
+    proxy: ['query_proxy_action', 'query_proxy_path'],
+};
+
+/**
+ * Switch the header labels and column-width mode
+ * @param {'hosts'|'proxy'} mode
+ * @returns {void}
+ */
+function setQueryHeaders(mode) {
+    const [leftKey, rightKey] = QUERY_HEADERS[mode];
+    const left = document.querySelector('.host-list-header-ip');
+    const right = document.querySelector('.host-list-header-domain');
+    if (left) {
+        left.setAttribute('data-i18n', leftKey);
+        left.textContent = getString(leftKey);
+    }
+    if (right) {
+        right.setAttribute('data-i18n', rightKey);
+        right.textContent = getString(rightKey);
+    }
+
+    // The proxy first column is a content-sized action badge, not the fixed hosts width
+    const header = document.querySelector('.host-list-header');
+    if (header) header.classList.toggle('proxy-mode', mode === 'proxy');
+}
+
+/**
+ * Switch the query target
+ * @param {'hosts'|'proxy'} mode
+ * @returns {void}
+ */
+function switchQueryMode(mode) {
+    queryMode = mode;
+    document.getElementById('query-tab-hosts').classList.toggle('active', mode === 'hosts');
+    document.getElementById('query-tab-proxy').classList.toggle('active', mode === 'proxy');
+
+    setQueryHeaders(mode);
+
+    const inputBox = document.getElementById('query-input');
+    if (inputBox) inputBox.value = '';
+
+    if (mode === 'proxy') {
+        getProxyRules();
+    } else {
+        getHosts();
+    }
+}
+
 function setupQueryInput() {
-    getHosts();
+    // Build the source index first, or the first batch renders untagged
+    loadSourceIndex().then(getHosts);
+
+    document.getElementById('query-tab-hosts').onclick = () => switchQueryMode('hosts');
+    document.getElementById('query-tab-proxy').onclick = () => switchQueryMode('proxy');
     const hostList = document.querySelector('.host-list-item');
     const inputBox = document.getElementById('query-input');
     const searchBtn = document.querySelector('.search-btn');
@@ -292,10 +558,28 @@ function setupQueryInput() {
     // Search functionality
     searchBtn.onclick = () => {
         const query = inputBox.value.trim().toLowerCase();
+        // "#src" / "#pxy" filter by source; keywords derive from SOURCE_TAGS
+        const tag = SOURCE_TAGS.find(t => `#${t.toLowerCase()}` === query);
+
+        // proxy side matches the whole line as a substring, read-only
+        if (queryMode === 'proxy') {
+            hostList.scrollTo(0, 0);
+            renderProxyRules(!query
+                ? proxyRules
+                : proxyRules.filter(rule => tag
+                    ? proxySourceOf(rule.raw) === tag
+                    : rule.raw.toLowerCase().includes(query)));
+            return;
+        }
+
         if (!query) getHosts();
 
         // Always search from the original data
         const filteredHosts = originalHostLines.filter(([hostIp, ...domains]) => {
+            if (tag) {
+                const isLocalhost = domains.every(d => d === "localhost");
+                return !isLocalhost && sourceOf(domains) === tag;
+            }
             return hostIp.toLowerCase().includes(query) || domains.some(domain => domain.toLowerCase().includes(query));
         });
 
@@ -339,6 +623,8 @@ export function onShow() {
     document.getElementById('mode-btn').classList.add('show');
     updateStatus();
     checkDevOption();
+    // only reload the query list when hosts was actually regenerated
+    if (consumeHostsStale()) loadSourceIndex().then(getHosts);
 }
 
 // Lifecycle: Each time page is hidden

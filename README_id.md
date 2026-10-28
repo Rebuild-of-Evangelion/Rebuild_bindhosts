@@ -12,6 +12,7 @@ Sepenuhnya mandiri, dapat memperbarui sendiri.
 - Koeksistensi Adaway
 - Hosts systemless melalui mount manajer, bind mount, dan OverlayFS
 - Metode pengalihan: ZN-hostsredirect, hosts_file_redirect, open_redirect
+- Proxy TLS lokal: tulis ulang atau blokir respons API per jalur URL
 
 ## Manajer Root yang Didukung
 

@@ -12,6 +12,7 @@ Totalmente autónomo, autoactualizado.
 - Compatible con Adaway
 - Hosts sin sistema vía manager mount, bind mount y OverlayFS
 - Métodos de redirección: ZN-hostsredirect, hosts_file_redirect, open_redirect
+- Proxy TLS local: reescribe o bloquea respuestas de API por ruta de URL
 
 ## Administradores de root compatibles
 

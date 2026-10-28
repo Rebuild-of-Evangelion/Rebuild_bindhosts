@@ -17,7 +17,13 @@ const branch = "crowdin_docs";
  * @returns {void}
  */
 async function getDocuments(element, link, fallback) {
+    // Module-local docs first: they ship under webroot/docs and work offline.
+    // The module root is outside the WebUI document root, so a symlinked path
+    // there gets rejected; anything not bundled here falls through to the network.
+    const localDoc = (path) => `docs/${path.replace('Documentation/', '')}`;
     const urls = [
+        localDoc(link),
+        localDoc(fallback),
         `${main}/${repo}/${branch}/${link}`,
         `${main}/${repo}/${branch}/${fallback}`,
         `${mirror}/${repo}/${branch}/${link}`,
@@ -143,6 +149,11 @@ export async function setupDocsMenu() {
             link: `Documentation/modes${langCode}.md`,
             fallback: `Documentation/modes.md`,
             element: 'modes-content',
+        },
+        proxy: {
+            link: `Documentation/proxy${langCode}.md`,
+            fallback: `Documentation/proxy.md`,
+            element: 'proxy-content',
         },
         usage: {
             link: `Documentation/usage${langCode}.md`,

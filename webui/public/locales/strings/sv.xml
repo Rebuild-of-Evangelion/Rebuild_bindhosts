@@ -108,4 +108,11 @@
     <string name="backup_restore_invalid_config">Ogiltig bindhosts-konfiguration</string>
     <string name="backup_restore_restored">Konfiguration återställd</string>
     <string name="backup_restore_restore_fail">Det gick inte att återställa konfigurationen</string>
+    <string name="query_proxy_action">Åtgärd</string>
+    <string name="query_proxy_path">Sökväg</string>
+    <string name="query_proxy_title">Proxy-fråga</string>
+    <string name="query_proxy_empty">Inga proxyregler har tillämpats ännu</string>
+    <string name="import_reject_in_hosts">Detta är en proxyregelfil, importera den i Proxy-vyn</string>
+    <string name="import_reject_in_proxy">Detta är en hosts-regelfil, importera den i Hosts-vyn</string>
+    <string name="more_proxy">Proxyregler</string>
 </resources>

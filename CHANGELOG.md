@@ -4,6 +4,68 @@ Systemless hosts for APatch, KernelSU and Magisk
 ---
 
 # Changelog
+### 3.0.0-rebuild
+#### Rules page
+- split the rules page into Hosts and Proxy views sharing one layout
+- add per-view enable switches next to the Hosts / Proxy tabs, applied on reload
+- group rule files by type: `hosts/` and `proxy/`, each holding `custom.txt`,
+  `sources.txt`, `blacklist.txt`, `whitelist.txt` and an `imported/` directory
+- the merged proxy product is `proxy.rules`
+- proxy whitelist / blacklist are views over `proxy/custom.txt`, filtered by action
+- migrate flat rule files from older builds into `hosts/` and `hosts/imported/`
+- fix toggling an imported rule set not taking effect — the state hash now covers
+  file names, so renaming to `.disabled` counts as a change
+- fix a disabled imported rule coming back from the old hosts file on the fallback path
+
+#### Query page
+- add a Proxy query tab listing the applied proxy rules, sorted by action then path
+- tag every entry with its origin: `SRC` for downloaded sets, `PXY` for
+  proxy-declared hosts; search by origin with `#src` / `#pxy`
+- show an empty list when proxy is disabled, instead of the stale product
+- follow every entry with a divider and share one column model between both views
+
+#### Proxy
+- local TLS proxy that rewrites or blocks API responses per URL path
+- rule syntax: `mock <path> [body]`, `forward <path>`, `block <path>`; a trailing
+  `*` means prefix match
+- the CA is generated on device at first enable; the private key never ships with
+  the module
+- serve HTTP/2 alongside HTTP/1.1
+- stream upstream responses with `io.Copy` instead of buffering them
+- reload rules with `SIGHUP`, keeping live connections open
+- add `--sync-proxy` to reconcile the proxy entries in hosts without a rebuild
+
+#### Watchdog
+- `proxy-daemon.sh` only starts the daemon and waits on it; hosts entries are
+  reconciled by `bindhosts.sh --sync-proxy`
+- 10 consecutive starts shorter than 10 s disable the proxy and exit
+- restore `bin/bindhosts-proxy.bak` when the main binary is missing
+- exit when proxy is switched off, so nothing keeps holding 127.0.0.1:443
+
+#### WebUI
+- enable/disable checkbox on every rule list (blacklist, whitelist,
+  sources_whitelist, imported rule sets)
+- imported rule sets are disabled by renaming with a `.disabled` suffix
+- fix delete/edit on imported rule sets resolving to the wrong filename
+- snapshot rule files per view and ask whether to keep unapplied changes when
+  returning to the rules page
+- keep uncommitted input per view, so switching views no longer leaks it
+- hide the header Hosts / Proxy switcher while the action terminal is open
+- suppress the WebView tap highlight on plain buttons and give the tabs a
+  pressed state instead
+- reload the query list on the home page only when the hosts file actually changed
+
+#### i18n
+- add the proxy strings to all 19 locales
+
+#### Scripts
+- add `draft.sh` to snapshot / restore the rule files per view
+- add `rule_filter`, so every rule file honors the `disabled|` prefix
+- fix `disabled|` being stripped and applied instead of skipped for custom rules
+- ignore leading/trailing whitespace in rule files
+- fall back to custom rules when sources are empty or every download fails
+- on fallback, drop entries owned by custom files so a disabled rule does not return
+
 ### 2.1.5
 - webui: use codemirror editor
 - scripts: support KSU late load

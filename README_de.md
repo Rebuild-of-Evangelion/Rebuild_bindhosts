@@ -12,6 +12,7 @@ Vollständig eigenständig, selbstaktualisierend.
 - Adaway-Koexistenz
 - Systemlose hosts über Manager-Mount, Bind-Mount und OverlayFS
 - Umleitungsmethoden: ZN-hostsredirect, hosts_file_redirect, open_redirect
+- Lokaler TLS-Proxy: API-Antworten pro URL-Pfad umschreiben oder blockieren
 
 ## Unterstützte Root-Manager
 

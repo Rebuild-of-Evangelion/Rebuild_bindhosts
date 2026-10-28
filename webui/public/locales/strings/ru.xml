@@ -123,4 +123,11 @@
     <string name="backup_restore_invalid_config">Неверная конфигурация bindhosts</string>
     <string name="backup_restore_restored">Конфигурация успешно восстановлена</string>
     <string name="backup_restore_restore_fail">Ошибка восстановления конфигурации</string>
+    <string name="query_proxy_action">Действие</string>
+    <string name="query_proxy_path">Путь</string>
+    <string name="query_proxy_title">Запрос прокси</string>
+    <string name="query_proxy_empty">Правила прокси ещё не применены</string>
+    <string name="import_reject_in_hosts">Это файл правил прокси, импортируйте его в представлении Proxy</string>
+    <string name="import_reject_in_proxy">Это файл правил hosts, импортируйте его в представлении Hosts</string>
+    <string name="more_proxy">Правила прокси</string>
 </resources>

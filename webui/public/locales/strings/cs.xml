@@ -108,4 +108,11 @@
     <string name="backup_restore_invalid_config">Neplatná konfigurace bindhosts</string>
     <string name="backup_restore_restored">Konfigurace úspěšně obnovena</string>
     <string name="backup_restore_restore_fail">Chyba při obnově konfigurace</string>
+    <string name="query_proxy_action">Akce</string>
+    <string name="query_proxy_path">Cesta</string>
+    <string name="query_proxy_title">Dotaz proxy</string>
+    <string name="query_proxy_empty">Zatím nejsou použita žádná pravidla proxy</string>
+    <string name="import_reject_in_hosts">Toto je soubor pravidel proxy, importujte jej v zobrazení Proxy</string>
+    <string name="import_reject_in_proxy">Toto je soubor pravidel hosts, importujte jej v zobrazení Hosts</string>
+    <string name="more_proxy">Pravidla proxy</string>
 </resources>

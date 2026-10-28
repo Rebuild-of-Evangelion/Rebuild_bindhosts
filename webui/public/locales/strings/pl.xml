@@ -123,4 +123,11 @@
     <string name="backup_restore_invalid_config">Nieprawidłowa konfiguracja bindhosts</string>
     <string name="backup_restore_restored">Konfiguracja została pomyślnie przywrócona</string>
     <string name="backup_restore_restore_fail">Nie udało się przywrócić konfiguracji</string>
+    <string name="query_proxy_action">Akcja</string>
+    <string name="query_proxy_path">Ścieżka</string>
+    <string name="query_proxy_title">Zapytanie proxy</string>
+    <string name="query_proxy_empty">Nie zastosowano jeszcze żadnych reguł proxy</string>
+    <string name="import_reject_in_hosts">To jest plik reguł proxy, zaimportuj go w widoku Proxy</string>
+    <string name="import_reject_in_proxy">To jest plik reguł hosts, zaimportuj go w widoku Hosts</string>
+    <string name="more_proxy">Reguły proxy</string>
 </resources>

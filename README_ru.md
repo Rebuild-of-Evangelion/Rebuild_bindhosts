@@ -12,6 +12,7 @@ Systemless хосты для APatch, KernelSU и Magisk
 - Совместимость с AdAway
 - Systemless хосты через монтирование менеджера, монтирование bind и OverlayFS
 - Методы перенаправления: ZN-hostsredirect, hosts_file_redirect, open_redirect
+- Локальный TLS-прокси: перезапись или блокировка ответов API по пути URL
 
 ## Поддерживаемые Root-менеджеры
 

@@ -8,7 +8,10 @@
 
     <!-- Query box -->
     <div class="box translucent" id="query-box">
-        <h2 id="query-header" data-i18n="query_title">Query</h2>
+        <div class="query-switcher">
+            <button type="button" class="query-tab active" id="query-tab-hosts" data-i18n="query_title">Query</button>
+            <button type="button" class="query-tab" id="query-tab-proxy" data-i18n="query_proxy_title">Proxy</button>
+        </div>
         <div class="search-box">
             <input class="query-input translucent" type="text" id="query-input" placeholder="Search" data-i18n="query_search" autocapitalize="off">
             <md-filled-icon-button class="search-btn">

@@ -192,4 +192,13 @@ if [ ! "$APATCH" = true ] && [ ! "$KSU" = true ]; then
 	sh "$MODDIR/boot-completed.sh" &
 fi
 
+# --- proxy ---
+# Already started in post-fs-data; this is only a fallback.
+if [ -f "$MODDIR/proxy-daemon.sh" ]; then
+	_wd=$(cat /data/adb/bindhosts/proxy-daemon.pid 2>/dev/null)
+	if [ -z "$_wd" ] || ! kill -0 "$_wd" 2>/dev/null; then
+		setsid sh "$MODDIR/proxy-daemon.sh" >/dev/null 2>&1 &
+	fi
+fi
+
 # EOF

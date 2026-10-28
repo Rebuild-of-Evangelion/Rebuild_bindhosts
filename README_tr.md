@@ -12,6 +12,7 @@ Tamamen bağımsız, kendi kendine güncellenen bir sistem.
 - Adaway ile birlikte çalışabilme
 - Yönetici montajı, bind mount ve OverlayFS ile sistemsiz hosts dosyası
 - Yönlendirme yöntemleri: ZN-hostsredirect, hosts_file_redirect, open_redirect
+- Yerel TLS proxy: URL yoluna göre API yanıtlarını yeniden yaz veya engelle
 
 ## Desteklenen Root Yöneticileri
 

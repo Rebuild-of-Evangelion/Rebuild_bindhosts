@@ -1,11 +1,170 @@
 import { exec, spawn } from 'kernelsu-alt';
 import { showPrompt, basePath, moduleDirectory, filePaths, fetchText, updateUIVisibility } from '../../utils/util.js';
 import { getString } from '../../utils/language.js';
+import { isDirty, markDirty, discardDraft, clearDraft, setDraftView } from '../../utils/draft.js';
+import { markHostsStale } from '../../utils/hostsState.js';
 import { Compartment, EditorState } from '@codemirror/state';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { EditorView, highlightActiveLineGutter, keymap, lineNumbers } from '@codemirror/view';
 import { FileSelector } from '../../utils/file_selector.js';
 import { setupDocsMenu } from '../../utils/docs.js';
+
+// the rule lists rendered on this page, in display order
+const RULE_FILE_TYPES = ["custom", "sources", "blacklist", "whitelist", "sources_whitelist"];
+
+// Uncommitted input per view. Both views share the same input elements, so
+// without isolation whatever is half-typed in Hosts leaks into Proxy.
+const pendingInput = { hosts: {}, proxy: {} };
+
+// ---- Hosts / Proxy dual view ----------------------------------------------
+// Both views share one set of sections; only the files and placeholders differ.
+// Proxy has no dedicated whitelist/blacklist files: those are views filtered out
+// of proxy/custom.txt by action.
+
+const VIEW_FILES = {
+    hosts: {
+        custom: 'hosts/custom.txt',
+        sources: 'hosts/sources.txt',
+        blacklist: 'hosts/blacklist.txt',
+        whitelist: 'hosts/whitelist.txt',
+        sources_whitelist: 'hosts/sources_whitelist.txt',
+    },
+    proxy: {
+        custom: 'proxy/custom.txt',
+        sources: 'proxy/sources.txt',
+        blacklist: 'proxy/custom.txt',
+        whitelist: 'proxy/custom.txt',
+        sources_whitelist: 'proxy/custom.txt',
+    },
+};
+
+const VIEW_PLACEHOLDERS = {
+    hosts: {
+        sources: 'https://adaway.org/hosts.txt',
+        sources_whitelist: 'https://example.com/whitelist_txt',
+        whitelist: 's.youtube.com',
+        blacklist: 'online-casino.com',
+        custom: '93.184.215.14 example.com',
+    },
+    proxy: {
+        sources: 'https://example.com/proxy_rules.txt',
+        whitelist: 'forward /run-front/*',
+        blacklist: 'block /api/ads/*',
+        custom: 'mock /run-front/common/update {"code":0}',
+    },
+};
+
+let currentView = 'hosts';
+
+// Applied state from rules_state; the checkboxes only hold the desired state
+let appliedState = { hosts: true, proxy: false };
+
+/**
+ * Read rules_state
+ * @returns {Promise<{hosts: boolean, proxy: boolean}>}
+ */
+async function readRulesState() {
+    const { stdout } = await exec(`cat "${basePath}/rules_state" 2>/dev/null`);
+    const get = (key, fallback) => {
+        const m = stdout.match(new RegExp(`^${key}=(\\d)`, 'm'));
+        return m ? m[1] === '1' : fallback;
+    };
+    return { hosts: get('hosts', true), proxy: get('proxy', false) };
+}
+
+/**
+ * Push the current view's desired state into the checkboxes
+ * @returns {void}
+ */
+function syncCheckboxes() {
+    const h = document.getElementById('check-hosts');
+    const p = document.getElementById('check-proxy');
+    if (h) h.checked = appliedState.hosts;
+    if (p) p.checked = appliedState.proxy;
+}
+
+/**
+ * Current checkbox value = desired state
+ * @returns {{hosts: boolean, proxy: boolean}}
+ */
+function pendingState() {
+    const h = document.getElementById('check-hosts');
+    const p = document.getElementById('check-proxy');
+    // Fall back to the applied state when the control is missing; a read failure must never disable hosts
+    return {
+        hosts: h ? !!h.checked : appliedState.hosts,
+        proxy: p ? !!p.checked : appliedState.proxy,
+    };
+}
+
+/**
+ * Switch between the Hosts and Proxy views
+ * @param {'hosts'|'proxy'} view
+ * @returns {void}
+ */
+function applyView(view) {
+    // Stash the current view's input first (already empty right after a submit)
+    RULE_FILE_TYPES.forEach(fileType => {
+        const input = document.getElementById(`${fileType}-input`);
+        if (input) pendingInput[currentView][fileType] = input.value;
+    });
+
+    currentView = view;
+    // Draft snapshots are per view; tell the draft layer which side we are editing
+    setDraftView(view);
+
+    Object.assign(filePaths, VIEW_FILES[view]);
+
+    document.getElementById('tab-hosts').classList.toggle('active', view === 'hosts');
+    document.getElementById('tab-proxy').classList.toggle('active', view === 'proxy');
+
+    // proxy has no "source whitelist" section
+    const swBox = document.getElementById('sources-whitelist-box');
+    if (swBox) swBox.style.display = view === 'proxy' ? 'none' : '';
+
+    RULE_FILE_TYPES.forEach(fileType => {
+        const input = document.getElementById(`${fileType}-input`);
+        if (!input) return;
+        // Restore the target view's own input and swap the placeholder
+        input.value = pendingInput[view][fileType] || "";
+        if (VIEW_PLACEHOLDERS[view][fileType]) {
+            input.placeholder = VIEW_PLACEHOLDERS[view][fileType];
+        }
+    });
+
+    updateDisabledLook();
+    reloadAllLists();
+}
+
+/**
+ * Grey out and lock the content when the current view is disabled
+ * @returns {void}
+ */
+function updateDisabledLook() {
+    const page = document.getElementById('page-hosts');
+    if (!page) return;
+    const enabled = currentView === 'hosts' ? appliedState.hosts : appliedState.proxy;
+    page.classList.toggle('rules-view-disabled', !enabled);
+    page.querySelectorAll('textarea, input').forEach(el => {
+        el.disabled = !enabled;
+    });
+}
+
+/**
+ * In the proxy view, split entries by action into whitelist / blacklist / custom
+ * @param {string[]} lines
+ * @param {string} fileType
+ * @returns {string[]}
+ */
+function filterForView(lines, fileType) {
+    if (currentView !== 'proxy') return lines;
+    const isForward = l => /^(disabled\|)?forward\s/.test(l);
+    const isBlock = l => /^(disabled\|)?block\s/.test(l);
+    if (fileType === 'whitelist') return lines.filter(isForward);
+    if (fileType === 'blacklist') return lines.filter(isBlock);
+    if (fileType === 'custom') return lines.filter(l => !isForward(l) && !isBlock(l));
+    return lines;
+}
 
 /**
  * Read a file and display its content in the UI
@@ -32,6 +191,7 @@ async function loadFile(fileType) {
  * @returns {void}
  */
 function displayHostsList(lines, fileType) {
+    lines = filterForView(lines, fileType);
     const listElement = document.getElementById(`${fileType}-list`);
     listElement.innerHTML = "";
     
@@ -45,8 +205,13 @@ function displayHostsList(lines, fileType) {
     const createListItem = (line) => {
         // Free favicon provided by GitHub@twentyhq/favicon
         const item = line.split('#');
-        const isDisabled = line.startsWith('disabled|');
-        const url = item[0].trim().replace(/^disabled\|/, '');
+        // imported rule sets are whole files: they are disabled via a ".disabled" filename suffix
+        const isDisabled = fileType === 'import_custom'
+            ? line.endsWith('.disabled')
+            : line.startsWith('disabled|');
+        const url = fileType === 'import_custom'
+            ? line.replace(/\.disabled$/, '')
+            : item[0].trim().replace(/^disabled\|/, '');
         const name = item[1]?.trim() || '';
 
         let domain = url.split(/\s+/).pop();
@@ -57,20 +222,23 @@ function displayHostsList(lines, fileType) {
             domain = domain.split(/[/:?#]/)[0];
         }
         const faviconUrl = `https://twenty-icons.com/${domain}`;
+        // Proxy rules are paths, not domains, so a favicon makes no sense
+        const showFavicon = fileType !== "import_custom"
+            && !(currentView === 'proxy' && ['custom', 'whitelist', 'blacklist'].includes(fileType));
 
         const listItem = document.createElement("div");
         listItem.className = 'scrollable-list';
         listItem.innerHTML = `
             <!-- Favicon and link text -->
             <div class="link-box">
-                ${fileType !== "import_custom" ? `<div class="favicon-wrapper">
+                ${showFavicon ? `<div class="favicon-wrapper">
                     <div class="favicon-loader"></div>
                     <img class="favicon-img favicon" src="${faviconUrl}" />
                 </div>` : ""}
                 <div class="link-text">${name || url}</div>
 
-                <!-- Checkbox (custom hosts and sources) -->
-                ${fileType === "custom" || fileType === "sources" ? `<md-checkbox></md-checkbox>` : ''}
+                <!-- Checkbox: enable/disable this rule (or this whole imported rule set) -->
+                <md-checkbox></md-checkbox>
             </div>
 
             <!-- Edit and delete buttons -->
@@ -123,11 +291,22 @@ function displayHostsList(lines, fileType) {
                 listItem.querySelector(".favicon-wrapper").innerHTML = `<svg class="favicon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960"><path d="M80-120v-720h400v160h400v560H80Zm80-80h80v-80h-80v80Zm0-160h80v-80h-80v80Zm0-160h80v-80h-80v80Zm0-160h80v-80h-80v80Zm160 480h80v-80h-80v80Zm0-160h80v-80h-80v80Zm0-160h80v-80h-80v80Zm0-160h80v-80h-80v80Zm160 480h320v-400H480v80h80v80h-80v80h80v80h-80v80Zm160-240v-80h80v80h-80Zm0 160v-80h80v80h-80Z"/></svg>`;
             };
         }
-        // Checkbox functionality for custom hosts
+        // Checkbox: toggle enabled/disabled for this entry
         const checkbox = listItem.querySelector("md-checkbox");
         if (checkbox) {
             checkbox.checked = !isDisabled;
-            checkbox.addEventListener('change', () => {
+            checkbox.addEventListener('change', async () => {
+                await markDirty();
+                // imported rule sets are files, so toggle by renaming with a .disabled suffix
+                if (fileType === 'import_custom') {
+                    const from = `${basePath}/${importDir()}/${isDisabled ? url + '.disabled' : url}`;
+                    const to = `${basePath}/${importDir()}/${isDisabled ? url : url + '.disabled'}`;
+                    exec(`mv -f "${from}" "${to}"`).then(({ errno }) => {
+                        if (errno !== 0) showPrompt(getString('global_save_fail'), false);
+                        getCustomHostsList();
+                    });
+                    return;
+                }
                 const command = isDisabled ? `s,${line},${line.replace(/^disabled\|/, '')},` : `s,${line},disabled|${line},`;
                 exec(`sed -i '${command}' ${basePath}/${filePaths[fileType]}`).then((result) => {
                     loadFile(fileType);
@@ -150,6 +329,7 @@ function displayHostsList(lines, fileType) {
         // Remove line from file
         if (deleteLine) {
             deleteLine.onclick = async () => {
+                await markDirty();
                 await exec(`
                     filtered=$(grep -vxF '${line}' ${basePath}/${filePaths[fileType]})
                     echo "$filtered" > ${basePath}/${filePaths[fileType]}
@@ -160,10 +340,11 @@ function displayHostsList(lines, fileType) {
         // Remove file
         if (deleteFile) {
             deleteFile.onclick = async () => {
-                const fileName = listItem.querySelector(".link-text").textContent;
-                const remove = await removeCustomHostsFile(fileName);
+                // `line` is the real filename on disk (may end with .disabled), `url` is the display name
+                const remove = await removeCustomHostsFile(url);
                 if (remove) {
-                    await exec(`rm -f "${basePath}/${fileName}"`);
+                    await markDirty();
+                    await exec(`rm -f "${basePath}/${importDir()}/${line}"`);
                     removeEntry();
                 }
             };
@@ -171,7 +352,6 @@ function displayHostsList(lines, fileType) {
         // Edit file
         if (editFile) {
             editFile.onclick = () => {
-                const line = listItem.querySelector(".link-text").textContent;
                 fileNameEditor(line);
             };
         }
@@ -225,10 +405,15 @@ async function handleAdd(fileType, prompt) {
         const fileContent = await fetchText('link/PERSISTENT_DIR/' + filePaths[fileType], `${basePath}/${filePaths[fileType]}`).catch(() => "");
         const existingLines = fileContent.split('\n').map(line => line.trim()).filter(line => line !== "");
 
+        let wroteAny = false;
         for (const line of inputLines) {
             if (existingLines.includes(line)) {
                 showPrompt(getString(prompt, line), false, 2000);
                 continue;
+            }
+            if (!wroteAny) {
+                await markDirty();
+                wroteAny = true;
             }
             await exec(`echo "${line}" >> ${basePath}/${filePaths[fileType]}`);
         }
@@ -420,7 +605,7 @@ let actionRunning = false, isTerminalOpen = false;
  * @param {String} args - argument for bindhosts.sh
  * @returns {Promise<void>}
  */
-function runBindhosts(args) {
+function runBindhosts(args, onExit) {
     const terminal = document.getElementById('action-terminal');
     const terminalContent = document.getElementById('action-terminal-content');
     const backButton = document.querySelector('.back-button');
@@ -433,7 +618,7 @@ function runBindhosts(args) {
     if (!actionRunning) {
         actionRunning = true;
         terminalContent.innerHTML = '';
-        const output = spawn("sh", [`${moduleDirectory}/bindhosts.sh`, `${args}`]);
+        const output = spawn("sh", [`${moduleDirectory}/bindhosts.sh`, ...String(args).split(/\s+/)]);
         output.stdout.on('data', (data) => appendOutput(data));
         output.stderr.on('data', (data) => appendOutput(data));
         output.on('exit', () => {
@@ -442,6 +627,7 @@ function runBindhosts(args) {
                 FabContainer.classList.add('show');
             }
             actionRunning = false;
+            if (onExit) onExit();
         });
     }
 
@@ -457,6 +643,8 @@ function runBindhosts(args) {
     const closeTerminal = () => {
         if (!isTerminalOpen) return;
         terminal.close();
+        // Back on the Rules page, restore the header switcher
+        document.getElementById('rules-switcher')?.classList.add('show');
         setTimeout(() => {
             isTerminalOpen = false;
         }, 100);
@@ -466,6 +654,8 @@ function runBindhosts(args) {
     setTimeout(() => {
         isTerminalOpen = true;
         terminal.open();
+        // The terminal slides out below the header and cannot cover it, so hide the switcher
+        document.getElementById('rules-switcher')?.classList.remove('show');
         closeBtn.classList.remove('show');
         backButton.onclick = () => closeTerminal();
     }, 50);
@@ -475,11 +665,47 @@ function runBindhosts(args) {
  * Find out custom hosts list and display it
  * @returns {void}
  */
+// Imported rule files live under each view's imported/, keeping their original names
+function importDir() {
+    return currentView === 'proxy' ? 'proxy/imported' : 'hosts/imported';
+}
+
+/**
+ * On a name clash append _2 / _3 and so on, picking the first free name
+ * @param {string} dir - imported directory (relative to basePath)
+ * @param {string} fileName - original file name
+ * @returns {Promise<string>}
+ */
+async function uniqueName(dir, fileName) {
+    const { stdout } = await exec(`ls -1 "${basePath}/${dir}" 2>/dev/null`);
+    const existing = new Set((stdout || "").split("\n").map(x => x.trim()).filter(Boolean));
+    if (!existing.has(fileName)) return fileName;
+
+    // .disabled is a state suffix, so the counter goes before the real extension
+    let name = fileName;
+    let suffix = "";
+    if (name.endsWith(".disabled")) {
+        suffix = ".disabled";
+        name = name.slice(0, -9);
+    }
+    const dot = name.lastIndexOf(".");
+    const stem = dot > 0 ? name.slice(0, dot) : name;
+    const ext = dot > 0 ? name.slice(dot) : "";
+
+    for (let i = 2; i < 1000; i++) {
+        const candidate = `${stem}_${i}${ext}${suffix}`;
+        if (!existing.has(candidate)) return candidate;
+    }
+    return `${stem}_${Date.now()}${ext}${suffix}`;
+}
+
 function getCustomHostsList() {
-    exec(`ls ${basePath} | grep "^custom.*\\.txt$" | grep -vx "custom.txt"`)
-        .then(({ stdout, errno }) => {
-            if (errno !== 0) return;
-            const lines = stdout.split("\n");
+    const dir = importDir();
+    // ls fails when the directory is missing; treat that as an empty list rather
+    // than returning early, or the view keeps the previous view's content.
+    exec(`ls -1 "${basePath}/${dir}" 2>/dev/null`)
+        .then(({ stdout }) => {
+            const lines = (stdout || "").split("\n").filter(line => line.trim());
             displayHostsList(lines, "import_custom");
         });
 }
@@ -491,8 +717,28 @@ function getCustomHostsList() {
 async function importCustomHost() {
     const filePath = await FileSelector.getFilePath("txt");
     if (filePath) {
+        // The file name is irrelevant; only the content matters:
+        //   Hosts view: the file must not contain any proxy rule line
+        //   Proxy view: the file must contain at least one proxy rule line
+        const scan = await exec(`
+            prox=$(grep -cE '^[[:space:]]*(disabled\\|)?(mock|forward|block)[[:space:]]' "${filePath}" 2>/dev/null)
+            echo \${prox:-0}
+        `);
+        const proxyCount = parseInt((scan.stdout || "0").trim(), 10) || 0;
+        if (currentView === 'proxy' && proxyCount === 0) {
+            showPrompt(getString('import_reject_in_proxy'), false);
+            return;
+        }
+        if (currentView === 'hosts' && proxyCount > 0) {
+            showPrompt(getString('import_reject_in_hosts'), false);
+            return;
+        }
+
         const fileName = filePath.split('/').pop().replace(/ /g, '_');
-        const destPath = `${basePath}/custom_${fileName}`;
+        const dir = importDir();
+        const finalName = await uniqueName(dir, fileName);
+        const destPath = `${basePath}/${dir}/${finalName}`;
+        await markDirty();
         const result = await exec(`
             cp -f "${filePath}" "${destPath}"
             chmod 644 "${destPath}"
@@ -540,17 +786,17 @@ function setupDevEditor() {
  */
 async function fileNameEditor(fileName) {
     const fileNameInput = document.getElementById('file-name-input');
-    const rawFileName = fileName.replace("custom", "").replace(".txt", "");
-    fileNameInput.value = rawFileName;
+    const rel = `${importDir()}/${fileName}`;
+    fileNameInput.value = fileName.replace(/\.txt$/, "");
     // Editor support for file smaller than 128KB
-    const result = await exec(`[ $(wc -c < ${basePath}/${fileName}) -lt 131072 ] || exit 1`);
+    const result = await exec(`[ $(wc -c < "${basePath}/${rel}") -lt 131072 ] || exit 1`);
     if (result.errno === 0) {
-        const content = await fetchText(`link/PERSISTENT_DIR/${fileName}`, `${basePath}/${fileName}`).catch(() => "");
+        const content = await fetchText(`link/PERSISTENT_DIR/${rel}`, `${basePath}/${rel}`).catch(() => "");
         setEditorValue(content);
-        openFileEditor(fileName);
+        openFileEditor(rel);
     } else {
         // Only rename is supported for large files
-        openFileEditor(fileName, false);
+        openFileEditor(rel, false);
         showPrompt(getString('global_file_too_large'));
     }
 }
@@ -736,17 +982,18 @@ HostEditorEOF
             // Save custom file
             command = `
                 [ ! -f ${basePath}/${lastFileName} ] || rm -f ${basePath}/${lastFileName}
-                cat << 'HostEditorEOF' > ${basePath}/custom${newFileName}.txt
+                cat << 'HostEditorEOF' > ${basePath}/${importDir()}/${newFileName}.txt
 ${content}
 HostEditorEOF
-                chmod 644 ${basePath}/custom${newFileName}.txt`;
+                chmod 644 ${basePath}/${importDir()}/${newFileName}.txt`;
         } else {
             // Rename file
-            command = `mv -f ${basePath}/${lastFileName} ${basePath}/custom${newFileName}.txt`;
+            command = `mv -f ${basePath}/${importDir()}/${lastFileName} ${basePath}/${importDir()}/${newFileName}.txt`;
         }
+        await markDirty();
         const result = await exec(command);
         if (result.errno === 0) {
-            showPrompt(getString('global_saved', `${basePath}/custom${newFileName}.txt`));
+            showPrompt(getString('global_saved', `${basePath}/${importDir()}/${newFileName}.txt`));
         } else {
             showPrompt(getString('global_save_fail'), false);
             console.error("Failed to save file:", result.stderr);
@@ -769,7 +1016,7 @@ function setupRenameDialog() {
         }
     });
     renameDialog.querySelector('.close-btn').onclick = () => renameDialog.close();
-    document.getElementById('edit-hosts-confirm').onclick = () => {
+    document.getElementById('edit-hosts-confirm').onclick = async () => {
         const currentLine = renameDialog.dataset.currentLine;
         const fileType = renameDialog.dataset.fileType;
         const isDisabled = renameDialog.dataset.isDisabled === "true";
@@ -780,6 +1027,7 @@ function setupRenameDialog() {
         if (newName) newLine += ` # ${newName}`;
         const command = `s,${currentLine},${newLine},`;
 
+        await markDirty();
         exec(`sed -i '${command}' ${basePath}/${filePaths[fileType]}`).then(() => {
             loadFile(fileType);
         });
@@ -802,16 +1050,123 @@ export function mount() {
     const forceUpdateButton = document.getElementById('force-update-btn');
     const importBtn = document.getElementById("import-custom-button");
 
-    actionBtn.onclick = () => runBindhosts("--action");
-    forceUpdateButton.onclick = () => runBindhosts("--force-update");
+    // a successful run rewrites hosts: drop the draft and let the home page know
+    const afterHostsRun = async () => {
+        clearDraft();
+        markHostsStale();
+        appliedState = await readRulesState();
+        syncCheckboxes();
+        updateDisabledLook();
+    };
+
+    actionBtn.onclick = () => {
+        const st = pendingState();
+        runBindhosts(`--action --hosts ${st.hosts ? 1 : 0} --proxy ${st.proxy ? 1 : 0}`, afterHostsRun);
+    };
+    forceUpdateButton.onclick = () => runBindhosts("--force-update", afterHostsRun);
     importBtn.onclick = () => importCustomHost();
+
+    document.getElementById('tab-hosts').onclick = () => applyView('hosts');
+    document.getElementById('tab-proxy').onclick = () => applyView('proxy');
+
+    setupDraftDialog();
+}
+
+/**
+ * Wire the "unapplied changes" dialog
+ * @returns {void}
+ */
+function setupDraftDialog() {
+    const scrim = document.getElementById('draft-scrim');
+    if (!scrim) return;
+
+    document.getElementById('draft-keep-btn').onclick = () => {
+        scrim.classList.remove('show');
+    };
+
+    document.getElementById('draft-discard-btn').onclick = async () => {
+        scrim.classList.remove('show');
+        await discardDraft();
+        clearPendingInputs();
+        syncCheckboxes();
+        reloadAllLists();
+        showPrompt(getString('draft_discarded'));
+    };
+}
+
+/**
+ * Drop text that was typed into the add boxes / rename dialog but never submitted,
+ * so "discard" really leaves nothing behind
+ * @returns {void}
+ */
+function clearPendingInputs() {
+    RULE_FILE_TYPES.forEach(fileType => {
+        const input = document.getElementById(`${fileType}-input`);
+        if (input) input.value = "";
+    });
+
+    ['edit-hosts-link', 'edit-hosts-name'].forEach(id => {
+        const field = document.getElementById(id);
+        if (field) field.value = "";
+    });
+}
+
+/**
+ * Whether something was typed into an add box but never submitted with the "+" button
+ * @returns {boolean}
+ */
+function hasPendingInput() {
+    return RULE_FILE_TYPES.some(fileType => {
+        const input = document.getElementById(`${fileType}-input`);
+        return !!input && input.value.trim() !== "";
+    });
+}
+
+/**
+ * Reload every rule list on the page
+ * @returns {void}
+ */
+function reloadAllLists() {
+    RULE_FILE_TYPES.forEach(loadFile);
+    getCustomHostsList();
+}
+
+/**
+ * Ask what to do with edits that were never applied
+ * @returns {Promise<void>}
+ */
+async function promptUnappliedChanges() {
+    const scrim = document.getElementById('draft-scrim');
+    if (!scrim) return;
+    // typed-but-not-submitted text counts as an unapplied change too
+    // Uncommitted checkbox changes are excluded here: onShow rolls them back to
+    // the applied state, so the UI never shows "checked but not in effect".
+    const dirty = (await isDirty()) || hasPendingInput();
+    if (!dirty) return;
+
+    document.getElementById('draft-dialog-text').textContent = getString('draft_dialog_message');
+    document.getElementById('draft-keep-btn').textContent = getString('draft_dialog_keep');
+    document.getElementById('draft-discard-btn').textContent = getString('draft_dialog_discard');
+    scrim.classList.add('show');
 }
 
 // Lifecycle: Each time page becomes visible
-export function onShow() {
+export async function onShow() {
     updateUIVisibility();
-    ["custom", "sources", "blacklist", "whitelist", "sources_whitelist"].forEach(loadFile);
-    getCustomHostsList();
+
+    // Replace the header title with the Hosts | Proxy switcher
+    const title = document.getElementById('title');
+    const switcher = document.getElementById('rules-switcher');
+    if (title) title.style.display = 'none';
+    if (switcher) switcher.classList.add('show');
+
+    // Read the applied state before syncing the checkboxes: uncommitted toggles
+    // are discarded on re-entry, keeping the UI equal to what is in effect.
+    appliedState = await readRulesState();
+    syncCheckboxes();
+    applyView(currentView);
+
+    promptUnappliedChanges();
 }
 
 // Lifecycle: Each time page is hidden
@@ -819,4 +1174,10 @@ export function onHide() {
     document.querySelectorAll('.fab-container').forEach(c => c.classList.remove('show', 'inTerminal'));
     document.getElementById('save-btn')?.classList.remove('show');
     document.getElementById('line-wrap-btn')?.classList.remove('show');
+
+    // Restore the plain title when leaving this page
+    const title = document.getElementById('title');
+    const switcher = document.getElementById('rules-switcher');
+    if (title) title.style.display = '';
+    if (switcher) switcher.classList.remove('show');
 }

@@ -12,6 +12,7 @@ Fully standalone, self-updating.
 - Adaway coexistence 
 - Systemless hosts via manager mount, bind mount, and OverlayFS
 - Redirect methods: ZN-hostsredirect, hosts_file_redirect, open_redirect
+- Local TLS proxy: rewrite or block API responses per URL path
 
 ## Supported Root Managers
 

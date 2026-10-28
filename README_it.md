@@ -12,6 +12,7 @@ Completamente autonomo e auto-aggiornante.
 - Coesistenza Adaway
 - Systemless hosts tramite manager mount, bind mount, e OverlayFS
 - Metodi di reindirizzamento: ZN-hostsredirect, hosts_file_redirect, open_redirect
+- Proxy TLS locale: riscrivi o blocca le risposte API per percorso URL
 
 ## Gestori di root supportati
 

@@ -123,4 +123,11 @@
     <string name="backup_restore_invalid_config">Geçersiz bindhosts yapılandırması</string>
     <string name="backup_restore_restored">Yapılandırma başarıyla geri yüklendi</string>
     <string name="backup_restore_restore_fail">Yapılandırma geri yüklenemedi</string>
+    <string name="query_proxy_action">Eylem</string>
+    <string name="query_proxy_path">Yol</string>
+    <string name="query_proxy_title">Proxy sorgusu</string>
+    <string name="query_proxy_empty">Henüz proxy kuralı uygulanmadı</string>
+    <string name="import_reject_in_hosts">Bu bir proxy kural dosyasıdır, Proxy görünümünde içe aktarın</string>
+    <string name="import_reject_in_proxy">Bu bir hosts kural dosyasıdır, Hosts görünümünde içe aktarın</string>
+    <string name="more_proxy">Proxy kuralları</string>
 </resources>

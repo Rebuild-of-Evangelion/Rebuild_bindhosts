@@ -1,6 +1,6 @@
 {
-  "version": "v2.1.5",
-  "versionCode": 215,
-  "zipUrl": "https://github.com/bindhosts/bindhosts/releases/latest/download/bindhosts.zip",
-  "changelog": "https://raw.githubusercontent.com/bindhosts/bindhosts/master/CHANGELOG.md"
+  "version": "v3.0.0-rebuild",
+  "versionCode": 300,
+  "zipUrl": "https://github.com/Rebuild-of-Evangelion/Rebuild_bindhosts/releases/latest/download/bindhosts.zip",
+  "changelog": "https://raw.githubusercontent.com/Rebuild-of-Evangelion/Rebuild_bindhosts/master/CHANGELOG.md"
 }

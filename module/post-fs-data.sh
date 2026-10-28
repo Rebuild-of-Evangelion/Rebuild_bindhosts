@@ -153,4 +153,16 @@ fi
 # debugging
 echo "bindhosts: post-fs-data.sh - probing done" >> /dev/kmsg
 
+# --- proxy ---
+# The CA must be mounted before zygote starts, so this runs last in post-fs-data.
+[ -f "$MODDIR/proxy-cert.sh" ] && sh "$MODDIR/proxy-cert.sh"
+
+# Proxy watchdog (it owns the daemon process).
+if [ -f "$MODDIR/proxy-daemon.sh" ]; then
+	_wd=$(cat /data/adb/bindhosts/proxy-daemon.pid 2>/dev/null)
+	if [ -z "$_wd" ] || ! kill -0 "$_wd" 2>/dev/null; then
+		setsid sh "$MODDIR/proxy-daemon.sh" >/dev/null 2>&1 &
+	fi
+fi
+
 # EOF

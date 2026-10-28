@@ -1,7 +1,7 @@
 id=bindhosts
 name=bindhosts
-version=v2.1.5
-versionCode=215
+version=v3.0.0-rebuild
+versionCode=300
 author=xx, KOWX712
-updateJson=https://raw.githubusercontent.com/bindhosts/bindhosts/master/update.json
+updateJson=https://raw.githubusercontent.com/Rebuild-of-Evangelion/Rebuild_bindhosts/master/update.json
 description=Systemless hosts for APatch, KernelSU and Magisk 

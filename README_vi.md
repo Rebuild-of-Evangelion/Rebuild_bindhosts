@@ -12,6 +12,7 @@ Hoàn toàn độc lập, tự động cập nhật.
 - Không xung đột với Adaway
 - Systemless hosts thông qua manager mount, bind mount, và OverlayFS
 - Phương thức chuyển hướng: ZN-hostsredirect, hosts_file_redirect, open_redirect
+- Proxy TLS cục bộ: viết lại hoặc chặn phản hồi API theo đường dẫn URL
 
 ## Hỗ trợ các trình quản lí root sau:
 

@@ -12,6 +12,7 @@ W pełni samodzielny i automatycznie aktualizowany.
 - Współpraca z AdAway
 - Bezsystemowy plik hosts przez montowanie menedżera, bind mount i OverlayFS
 - Metody przekierowania: ZN-hostsredirect, hosts_file_redirect, open_redirect
+- Lokalny proxy TLS: przepisuj lub blokuj odpowiedzi API według ścieżki URL
 
 ## Obsługiwane menedżery roota
 

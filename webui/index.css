@@ -9,6 +9,12 @@
 @import "./page/more/more.css";
 
 @layer base {
+    /* Android WebView paints a blue tap highlight on plain buttons.
+       Suppress it and let each component define its own pressed state. */
+    button {
+        -webkit-tap-highlight-color: transparent;
+    }
+
     body {
         background-color: var(--md-sys-color-background);
         color: var(--md-sys-color-on-background);
@@ -40,6 +46,51 @@
         display: flex;
         align-items: center;
         gap: 4px;
+    }
+
+    /* Hosts | Proxy switcher, lives in the header where the page title sits */
+    .rules-switcher {
+        display: none;
+        flex-grow: 1;
+        align-items: center;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    .rules-switcher.show {
+        display: flex;
+    }
+
+    .rules-switcher-spacer {
+        flex-grow: 1;
+    }
+
+    .rules-tab {
+        padding: 6px 14px;
+        border: none;
+        border-radius: 16px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-size: 0.82em;
+        font-weight: 500;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.15s ease;
+    }
+
+    .rules-tab:active {
+        background: rgba(128, 128, 128, 0.18);
+    }
+
+    .rules-tab.active {
+        background: var(--md-sys-color-surface-container-high);
+    }
+
+    /* the whole rules view fades out when the current view is disabled */
+    .rules-view-disabled .box:not(.rules-switcher-box) {
+        opacity: 0.45;
+        pointer-events: none;
     }
 
     body.editor-active #title {
@@ -563,6 +614,90 @@
 
     md-dialog.input-dialog {
         margin-top: calc(10% + var(--top-inset));
+    }
+
+    /* Unapplied changes dialog — same fill, shape and elevation as #action-btn */
+    .draft-scrim {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        box-sizing: border-box;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: calc(var(--z-index-dialog) + 100);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.15s ease;
+    }
+
+    .draft-scrim.show {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .draft-dialog {
+        width: 100%;
+        max-width: 320px;
+        padding: 20px 16px 10px;
+        box-sizing: border-box;
+        background: var(--md-sys-color-primary-container);
+        color: var(--md-sys-color-on-primary-container);
+        border-radius: 16px;
+        box-shadow:
+            0 4px 8px 3px rgba(0, 0, 0, 0.15),
+            0 1px 3px 0 rgba(0, 0, 0, 0.30);
+        opacity: 0;
+        transform: scale(0.96);
+        transition: opacity 0.15s ease, transform 0.15s ease;
+    }
+
+    .draft-scrim.show .draft-dialog {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    .draft-dialog-text {
+        margin: 0 0 16px;
+        padding: 0 4px;
+        font-size: 0.95em;
+        line-height: 1.6;
+        word-break: break-word;
+    }
+
+    /* two equal halves with centred labels, like the Magisk button bar */
+    .draft-dialog-actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 4px;
+        padding: 0 8px;
+    }
+
+    .draft-dialog-btn {
+        flex: 1 1 0;
+        min-height: 44px;
+        padding: 10px 8px;
+        border: none;
+        border-radius: 12px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-weight: 500;
+        text-align: center;
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+
+    .draft-dialog-btn:active {
+        background: rgba(128, 128, 128, 0.18);
+    }
+
+    /* secondary action — mirrors the grey "deny" of the Magisk prompt */
+    #draft-discard-btn {
+        opacity: 0.72;
+        font-weight: 400;
     }
 
     [unresolved] {

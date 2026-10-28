@@ -110,4 +110,11 @@
     <string name="backup_restore_invalid_config">Невірна конфігурація bindhosts</string>
     <string name="backup_restore_restored">Конфігурація успішно відновлена</string>
     <string name="backup_restore_restore_fail">Помилка відновлення конфігурації</string>
+    <string name="query_proxy_action">Дія</string>
+    <string name="query_proxy_path">Шлях</string>
+    <string name="query_proxy_title">Запит проксі</string>
+    <string name="query_proxy_empty">Правила проксі ще не застосовано</string>
+    <string name="import_reject_in_hosts">Це файл правил проксі, імпортуйте його в поданні Proxy</string>
+    <string name="import_reject_in_proxy">Це файл правил hosts, імпортуйте його в поданні Hosts</string>
+    <string name="more_proxy">Правила проксі</string>
 </resources>

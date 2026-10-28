@@ -32,10 +32,19 @@ fi
 # just in case user deletes them
 # persistence
 [ ! -d /data/adb/bindhosts ] && mkdir -p $PERSISTENT_DIR
-files="custom.txt blacklist.txt sources.txt whitelist.txt"
+# Rule files are grouped by type; the old name prefixes are gone.
+HOSTS_DIR="$PERSISTENT_DIR/hosts"
+PROXY_DIR="$PERSISTENT_DIR/proxy"
+HOSTS_IMPORTED="$HOSTS_DIR/imported"
+PROXY_IMPORTED="$PROXY_DIR/imported"
+# The product cannot share its name with proxy/, or mv drops the file inside it.
+PROXY_PRODUCT="$PERSISTENT_DIR/proxy.rules"
+mkdir -p "$HOSTS_IMPORTED" "$PROXY_IMPORTED" "$HOSTS_DIR/cache" "$PROXY_DIR/cache" 2>/dev/null
+
+# These are already absolute paths; do not prepend $PERSISTENT_DIR/.
+files="$HOSTS_DIR/custom.txt $HOSTS_DIR/blacklist.txt $HOSTS_DIR/sources.txt $HOSTS_DIR/whitelist.txt $HOSTS_DIR/sources_whitelist.txt $PROXY_DIR/sources.txt $PROXY_DIR/custom.txt"
 for i in $files ; do
-	# if file doesnt exist, write dummy
-	[ ! -f "$PERSISTENT_DIR/$i" ] && echo "#" > "$PERSISTENT_DIR/$i"
+	[ ! -f "$i" ] && echo "#" > "$i"
 done
 
 adaway_warn() {
@@ -45,6 +54,9 @@ adaway_warn() {
 # impl def for changing variables
 target_hostsfile="$MODDIR/system/etc/hosts"
 helper_mode=""
+
+# Record the real hosts path: it varies per operating mode and the watchdog needs it.
+echo "$target_hostsfile" > "$PERSISTENT_DIR/hosts_target" 2>/dev/null
 
 # we can just remove the other unmodified modes
 # and have them fall to * but im gonna leave it 
@@ -325,14 +337,308 @@ else
 	download() { busybox wget -T 10 --no-check-certificate -qO - "$1"; }
 fi
 
+# strip CR, leading/trailing whitespace, comments and blank lines,
+# then drop entries marked as disabled with the "disabled|" prefix.
+# keep this in one place so every rule file behaves identically.
+rule_filter() {
+	sed 's/\r$//; s/^[[:space:]]*//; s/#.*//; s/[[:space:]]*$//; /^$/d; /^disabled|/d' "$@"
+}
+
+# same as rule_filter, but keeps disabled entries (prefix stripped).
+# used to know which lines hosts_custom*.txt owns, regardless of enabled state.
+rule_filter_all() {
+	sed 's/\r$//; s/^[[:space:]]*//; s/#.*//; s/[[:space:]]*$//; s/^disabled|//; /^$/d' "$@"
+}
+
+# --- rules_state ---------------------------------------------------------
+# hosts=1|0
+# proxy=0|1
+# missing file falls back to the defaults passed in by the caller.
+
+read_state() {
+	state_val=$(grep "^$1=" "$PERSISTENT_DIR/rules_state" 2>/dev/null | head -n 1 | cut -d= -f2)
+	echo "${state_val:-$2}"
+}
+
+write_state() {
+	printf "hosts=%s\nproxy=%s\n" "$1" "$2" > "$PERSISTENT_DIR/rules_state"
+}
+
+# --- hashes --------------------------------------------------------------
+# crc32 of a rule set, used to decide whether a rebuild is needed.
+# file NAMES are part of the hash: renaming x.txt to x.txt.disabled changes no
+# file content, so a content-only hash would miss the toggle entirely.
+
+hosts_hash() {
+	(
+		cd "$PERSISTENT_DIR" 2>/dev/null || exit 0
+		ls -1 hosts/*.txt hosts/imported/*.txt hosts/imported/*.txt.disabled 2>/dev/null
+		cat hosts/*.txt hosts/imported/*.txt hosts/imported/*.txt.disabled 2>/dev/null
+		# hosts lines living in the proxy rule files also shape the hosts file
+		grep -hE '^[[:space:]]*[0-9]' proxy/*.txt proxy/imported/*.txt 2>/dev/null
+		echo "enabled=$(read_state hosts 1)"
+		# The proxy switch decides whether hosts carries the 127.0.0.1 entry,
+		# so it must be part of the hash; toggling it alone must rebuild hosts.
+		echo "proxy=$(read_state proxy 0)"
+		date +%F
+	) | busybox crc32
+}
+
+proxy_hash() {
+	(
+		cd "$PERSISTENT_DIR" 2>/dev/null || exit 0
+		ls -1 proxy/*.txt proxy/imported/*.txt proxy/imported/*.txt.disabled 2>/dev/null
+		cat proxy/*.txt proxy/imported/*.txt proxy/imported/*.txt.disabled 2>/dev/null
+		echo "enabled=$(read_state proxy 0)"
+		date +%F
+	) | busybox crc32
+}
+
+# --- proxy rules ---------------------------------------------------------
+
+# hosts lines written inside the proxy rule files, e.g.
+#   127.0.0.1 api.example.com
+# they are merged into the hosts file, never into the proxy product.
+proxy_hosts_lines() {
+	(
+		cd "$PERSISTENT_DIR" 2>/dev/null || exit 0
+		grep -hE '^[[:space:]]*[0-9]' proxy/*.txt proxy/imported/*.txt 2>/dev/null
+	) | sed 's/\r$//; s/^[[:space:]]*//; s/#.*//; s/[[:space:]]*$//; /^$/d'
+}
+
+# merge order decides priority (first match wins):
+#   proxy_custom.txt  ->  imported proxy_custom_*.txt  ->  downloaded proxy_sources
+proxy_merge() {
+	rule_filter "$PROXY_DIR/custom.txt" 2>/dev/null
+	for f in "$PROXY_IMPORTED"/*.txt ; do
+		[ -f "$f" ] || continue
+		rule_filter "$f"
+	done
+	[ -s "$rwdir/proxysrc" ] && rule_filter "$rwdir/proxysrc"
+	return 0
+}
+
+# Keep the proxy entries in hosts in sync with the proxy switch and daemon state.
+#
+# Idempotent: returns without touching the file when already in sync.
+# Hash-independent: whoever rewrote hosts, one reconcile fixes it.
+#
+# Expected state:
+#   proxy on and daemon alive -> every line from proxy_hosts_lines must be present
+#   otherwise                 -> none of them may be present
+sync_proxy_hosts() {
+	_want=$(proxy_hosts_lines)
+	_tmp="$PERSISTENT_DIR/.proxysync"
+
+	_on=0
+	if [ "$(read_state proxy 0)" = "1" ] && pidof bindhosts-proxy >/dev/null 2>&1 ; then
+		_on=1
+	fi
+
+	# Count with awk: the script PATH may pick up Termux's GNU grep, whose
+	# handling of the -f file argument differs from toybox and never matches.
+	_want_n=0
+	_have=0
+	if [ -n "$_want" ]; then
+		printf '%s\n' "$_want" > "$_tmp"
+		_want_n=$(awk 'NF { n++ } END { print n+0 }' "$_tmp")
+		_have=$(awk '
+			NR == FNR { want[$0] = 1; next }
+			($0 in want) { n++ }
+			END { print n+0 }
+		' "$_tmp" "$target_hostsfile")
+	fi
+
+	# Already in sync, nothing to do.
+	if [ "$_on" = "1" ] && [ "$_have" = "$_want_n" ] ; then
+		rm -f "$_tmp"
+		return 0
+	fi
+	if [ "$_on" = "0" ] && [ "$_have" = "0" ] ; then
+		rm -f "$_tmp"
+		return 0
+	fi
+
+	# Out of sync: strip every such line first, then append what is needed.
+	if [ -s "$_tmp" ] ; then
+		awk 'NR == FNR { want[$0] = 1; next } !($0 in want)' \
+			"$_tmp" "$target_hostsfile" > "$_tmp.body"
+	else
+		cp -f "$target_hostsfile" "$_tmp.body"
+	fi
+	awk '!/^# bindhosts v/' "$_tmp.body" > "$_tmp.clean"
+
+	{
+		cat "$_tmp.clean"
+		if [ "$_on" = "1" ] && [ "$_want_n" -gt 0 ] ; then
+			printf '%s\n' "$_want"
+		fi
+		echo "# bindhosts v$versionCode"
+	} > "$_tmp.out"
+
+	# Safety valve: losing the localhost lines breaks name resolution system-wide.
+	if awk '
+		/^127\.0\.0\.1 localhost/ { a = 1 }
+		/^::1 localhost/ { b = 1 }
+		END { exit !(a && b) }
+	' "$_tmp.out" ; then
+		# Write in place; replacing the inode breaks Magisk's bind mount here.
+		cat "$_tmp.out" > "$target_hostsfile"
+		_state=off
+		[ "$_on" = "1" ] && _state=on
+		echo "[+] proxy entries synced: $_have/$_want_n (proxy $_state)"
+	else
+		echo "[x] sync skipped: localhost lines missing"
+	fi
+
+	rm -f "$_tmp" "$_tmp.body" "$_tmp.clean" "$_tmp.out"
+}
+
+# Build the rule product only; never touches the daemon.
+# Split out so callers can order things: product -> daemon -> hosts.
+build_proxy_product() {
+	echo "[+] processing proxy rules"
+	rm -f "$rwdir/proxysrc"
+	proxy_ok=0
+	for url in $(rule_filter "$PROXY_DIR/sources.txt" | grep http) ; do
+		echo "[>] fetching $url"
+		if download "$url" >> "$rwdir/proxysrc"; then
+			proxy_ok=1
+		else
+			echo "[x] failed downloading $url"
+		fi
+	done
+	if [ "$proxy_ok" = 1 ]; then
+		cp -f "$rwdir/proxysrc" "$PROXY_DIR/cache/sources.txt" 2>/dev/null
+	elif [ -s "$PROXY_DIR/cache/sources.txt" ]; then
+		echo "[!] all proxy sources failed, using cache"
+		cp -f "$PROXY_DIR/cache/sources.txt" "$rwdir/proxysrc"
+	fi
+
+	# keep one rule per path, first one wins; drop hosts lines and junk.
+	# warnings go to a side file so they never pollute the product.
+	rm -f "$rwdir/proxywarn"
+	proxy_merge | awk -v warn="$rwdir/proxywarn" '
+		$0 == "" { next }
+		# Keep hosts lines in the product: the proxy uses them as its allowed list.
+		$1 ~ /^[0-9]/ { print; next }
+		$1 !~ /^(mock|forward|block)$/ {
+			printf "[!] unknown action, skipped: %s\n", $0 >> warn
+			next
+		}
+		$2 == "" { next }
+		{
+			if ($2 in seen) {
+				printf "[!] conflict on %s, keeping the first rule\n", $2 >> warn
+				next
+			}
+			seen[$2] = 1
+			print
+		}' > "$PERSISTENT_DIR/proxy.tmp"
+	[ -s "$rwdir/proxywarn" ] && cat "$rwdir/proxywarn"
+	rm -f "$rwdir/proxywarn"
+	mv -f "$PERSISTENT_DIR/proxy.tmp" "$PROXY_PRODUCT"
+
+	rm -f "$rwdir/proxysrc"
+	proxy_hash > "$PERSISTENT_DIR/proxy_state"
+	echo "[+] proxy rules: $(grep -c . "$PROXY_PRODUCT" 2>/dev/null) entries"
+}
+
+# Make sure the proxy is running. The daemon itself is only ever started by
+# proxy-daemon.sh; this function is responsible for:
+#   1. generating the local CA when missing and installing it into the trust store
+#   2. starting the watchdog when it is not alive
+#   3. sending SIGHUP to a running daemon when the product was rebuilt ($1=1)
+# It does not wait for readiness: the watchdog adds the hosts entries itself.
+ensure_proxy_running() {
+	_reload="${1:-1}"
+	PROXY_BIN="$MODDIR/bin/bindhosts-proxy"
+	CERTDIR="$PROXY_DIR/certs"
+
+	[ -x "$PROXY_BIN" ] || { echo "[x] proxy binary missing: $PROXY_BIN" ; return 1 ; }
+
+	# Enabling at runtime skips boot-time CA generation, so do it here.
+	if [ ! -f "$CERTDIR/ca.crt" ] || [ ! -f "$CERTDIR/ca.key" ] ; then
+		echo "[+] generating local CA"
+		mkdir -p "$CERTDIR"
+		"$PROXY_BIN" -genca "$CERTDIR" >/dev/null 2>&1
+	fi
+	# Install the CA if it is not in the trust store yet.
+	CAFILE=$(ls "$CERTDIR"/*.0 2>/dev/null | head -1)
+	if [ -n "$CAFILE" ] && [ ! -f "/system/etc/security/cacerts/$(basename "$CAFILE")" ] ; then
+		echo "[+] installing CA into trust store"
+		sh "$MODDIR/proxy-cert.sh" >/dev/null 2>&1
+	fi
+
+	# Start the watchdog if absent; it owns the daemon process.
+	if ! watchdog_alive ; then
+		echo "[+] starting proxy watchdog"
+		setsid sh "$MODDIR/proxy-daemon.sh" >/dev/null 2>&1 < /dev/null &
+		return 0
+	fi
+
+	# Watchdog and daemon are both up; make the daemon reload if rules changed.
+	if pidof bindhosts-proxy >/dev/null 2>&1 ; then
+		if [ "$_reload" = "1" ] ; then
+			echo "[+] reloading proxy rules"
+			for _pid in $(pidof bindhosts-proxy) ; do
+				kill -HUP "$_pid" 2>/dev/null
+			done
+		else
+			echo "[+] proxy: daemon already running"
+		fi
+	fi
+	return 0
+}
+
+# Watchdog liveness via its pid file, avoiding pgrep/ps.
+watchdog_alive() {
+	_wd=$(cat "$PERSISTENT_DIR/proxy-daemon.pid" 2>/dev/null)
+	[ -n "$_wd" ] && kill -0 "$_wd" 2>/dev/null
+}
+
+# Compatibility wrapper: product and daemon in one call.
+run_proxy() {
+	build_proxy_product
+	ensure_proxy_running
+}
+
+# rebuild hosts from custom rules only, while keeping previously downloaded entries.
+# used when sources are unusable (hosts_sources.txt empty, or every download failed),
+# so that toggling a custom rule still takes effect offline.
+fallback_to_custom() {
+	echo "[+] falling back to custom rules only (keeping existing entries)"
+	rm -f "$rwdir/temphosts" "$rwdir/customlist"
+	if [ -f "$target_hostsfile" ]; then
+		# strip the two localhost lines and the version marker
+		tail -n +3 "$target_hostsfile" | grep -v "^# bindhosts v" > "$rwdir/temphosts"
+	fi
+	# drop anything hosts_custom*.txt is responsible for, so a disabled rule does not
+	# come back from the old hosts file
+	if [ -s "$rwdir/temphosts" ]; then
+		rule_filter_all "$HOSTS_DIR/custom.txt" "$HOSTS_IMPORTED"/*.txt "$HOSTS_IMPORTED"/*.txt.disabled > "$rwdir/customlist" 2>/dev/null
+		if [ -s "$rwdir/customlist" ]; then
+			grep -vxFf "$rwdir/customlist" "$rwdir/temphosts" > "$rwdir/temphosts.new"
+			mv -f "$rwdir/temphosts.new" "$rwdir/temphosts"
+		fi
+		rm -f "$rwdir/customlist"
+	fi
+	printf "127.0.0.1 localhost\n::1 localhost\n" > "$target_hostsfile"
+	rule_filter "$HOSTS_DIR/custom.txt" "$HOSTS_IMPORTED"/*.txt >> "$target_hostsfile" 2>/dev/null
+	[ -s "$rwdir/temphosts" ] && sort -u "$rwdir/temphosts" >> "$target_hostsfile"
+	rm -f "$rwdir/temphosts"
+	echo "# bindhosts v$versionCode" >> "$target_hostsfile"
+}
+
 adblock() {
 	illusion
 	# source processing start!
 	echo "[+] processing sources"
-	sources=$(sed 's/#.*//' $PERSISTENT_DIR/sources.txt | grep -v "^disabled" | grep http)
+	sources=$(rule_filter $HOSTS_DIR/sources.txt | grep http)
 	if [ -z "$sources" ]; then
 		echo "[x] no sources found 😭"
-		echo "[x] sources.txt needs correction 💢"
+		echo "[x] hosts_sources.txt needs correction 💢"
+		fallback_to_custom
 		return
 	fi
 
@@ -350,12 +656,22 @@ adblock() {
 		fi
 	done
 
-	# if all downloads failed we are probably offline, abort the update.
+	# Cache a successful download so an offline run can rebuild from it.
+	if [ "$successful_downloads" -gt 0 ]; then
+		cp -f "$rwdir/temphosts" "$HOSTS_DIR/cache/sources.txt" 2>/dev/null
+	fi
+
+	# if all downloads failed we are probably offline
 	if [ "$successful_downloads" -eq 0 ] && [ "$total_downloads" -gt 0 ]; then
-		echo "[!] all downloads failed, aborting update."
-		echo "[!] keeping existing hosts file."
-		rm -f "$rwdir/temphosts"
-		return
+		if [ -s "$HOSTS_DIR/cache/sources.txt" ]; then
+			echo "[!] all downloads failed, falling back to cached sources"
+			cp -f "$HOSTS_DIR/cache/sources.txt" "$rwdir/temphosts"
+		else
+			echo "[!] all downloads failed, aborting update."
+			echo "[!] keeping existing entries and applying custom rules."
+			fallback_to_custom
+			return
+		fi
 	fi
 
 	# if temphosts is empty (can happen if sources were valid but returned no content)
@@ -368,16 +684,16 @@ adblock() {
 	# localhost
 	printf "127.0.0.1 localhost\n::1 localhost\n" > $target_hostsfile
 	# always restore user's custom rules
-	sed 's/#.*//; /^$/d; s/\r$//; s/^disabled|//g' $PERSISTENT_DIR/custom*.txt >> $target_hostsfile
-	# blacklist.txt
-	for i in $(sed 's/#.*//' $PERSISTENT_DIR/blacklist.txt ); do echo "0.0.0.0 $i" >> "$rwdir/temphosts"; done
-	# whitelist.txt
+	rule_filter "$HOSTS_DIR/custom.txt" "$HOSTS_IMPORTED"/*.txt >> $target_hostsfile 2>/dev/null
+	# hosts_blacklist.txt
+	for i in $(rule_filter $HOSTS_DIR/blacklist.txt); do echo "0.0.0.0 $i" >> "$rwdir/temphosts"; done
+	# hosts_whitelist.txt
 	echo "[+] processing whitelist"
 	# make sure tempwhitelist isnt empty
 	# or it will grep out nothingness from everything
 	# which actually greps out everything.
 	echo "256.256.256.256 bindhosts" > "$rwdir/tempwhitelist"
-	for url in $(sed 's/#.*//' $PERSISTENT_DIR/sources_whitelist.txt | grep http) ; do
+	for url in $(rule_filter $HOSTS_DIR/sources_whitelist.txt | grep http) ; do
 		echo "[>] fetching $url"
 		download "$url" >> "$rwdir/remote_whitelist" || echo "[x] failed downloading $url"
 	done
@@ -386,9 +702,9 @@ adblock() {
 		sed -i 's/#.*//; /!/d; s/  */ /g; /^$/d; s/\r$//' "$rwdir/remote_whitelist"
 		for i in $(sort -u "$rwdir/remote_whitelist" ); do echo "$i" ; done >> "$rwdir/tempwhitelist"
 	fi
-	for i in $(sed 's/#.*//' $PERSISTENT_DIR/whitelist.txt); do echo "$i" ; done >> "$rwdir/tempwhitelist"
+	for i in $(rule_filter $HOSTS_DIR/whitelist.txt); do echo "$i" ; done >> "$rwdir/tempwhitelist"
 	# sed strip out everything with # and !, double space to single space, delete empty lines, dos2unix (CRLF), replace all 127.0.0.1 to 0.0.0.0
-	# then sort uniq, then grep out whitelist.txt from it
+	# then sort uniq, then grep out hosts_whitelist.txt from it
 	sed -i 's/#.*//; /!/d; s/  */ /g; /^$/d; s/\r$//; s/127.0.0.1/0.0.0.0/g' "$rwdir/temphosts"
 	# no need to -x on grep, allow wildmatches! bindhosts/issue #112
 	sort -u "$rwdir/temphosts" | grep -Fvf "$rwdir/tempwhitelist" >> $target_hostsfile
@@ -401,7 +717,8 @@ reset() {
 	# localhost
 	printf "127.0.0.1 localhost\n::1 localhost\n" > $target_hostsfile
 	# always restore user's custom rules
-	sed 's/#.*//; /^$/d; s/^disabled|//g' $PERSISTENT_DIR/custom*.txt >> $target_hostsfile
+	rule_filter "$HOSTS_DIR/custom.txt" "$HOSTS_IMPORTED"/*.txt >> $target_hostsfile 2>/dev/null
+	sync_proxy_hosts
         string="description=status: reset 🤐 | $(date)"
         sed -i "s/^description=.*/$string/g" $MODDIR/module.prop
         echo "[+] hosts file reset!"
@@ -409,20 +726,39 @@ reset() {
         rm $PERSISTENT_DIR/bindhosts_state > /dev/null 2>&1
 }
 
-run() {
-	adblock
+run_hosts() {
+	if [ "$(read_state hosts 1)" = "1" ]; then
+		adblock
+	else
+		echo "[+] hosts disabled, writing localhost only"
+		printf "127.0.0.1 localhost\n::1 localhost\n" > "$target_hostsfile"
+		echo "# bindhosts v$versionCode" >> "$target_hostsfile"
+	fi
+	# proxy hosts lines follow the proxy switch, not the hosts switch
+	sync_proxy_hosts
 	# store these as variables
 	# this way we dont do the grepping twice
-	custom=$( grep -vEc "0.0.0.0| localhost|#" $target_hostsfile)
-	blocked=$(grep -c "0.0.0.0" $target_hostsfile )
+	custom=$( grep -vEc "0.0.0.0| localhost|#" "$target_hostsfile")
+	blocked=$(grep -c "0.0.0.0" "$target_hostsfile" )
 	# now use them
 	echo "[+] blocked: $blocked | custom: $custom "
-	string="description=status: active ✅ | blocked: $blocked 🚫 | custom: $custom 🤖 $helper_mode"
+	if [ "$(read_state hosts 1)" = "1" ]; then
+		string="description=status: active ✅ | blocked: $blocked 🚫 | custom: $custom 🤖 $helper_mode"
+	else
+		string="description=status: hosts off 💤 | blocked: $blocked 🚫 | custom: $custom 🤖 $helper_mode"
+	fi
 	sed -i "s/^description=.*/$string/g" $MODDIR/module.prop
 	# ready for reset again
-	(cat $PERSISTENT_DIR/*.txt; date +%F) | busybox crc32 > $PERSISTENT_DIR/bindhosts_state
+	hosts_hash > $PERSISTENT_DIR/bindhosts_state
 	# cleanup
 	rm -f "$rwdir/remote_whitelist" "$rwdir/temphosts" "$rwdir/tempwhitelist" "$PERSISTENT_DIR/bindhosts_backup" > /dev/null 2>&1
+}
+
+run() {
+	# Same order as action(): bring the proxy up before writing hosts.
+	[ "$(read_state proxy 0)" = "1" ] && run_proxy
+	run_hosts
+	return 0
 }
 
 # adaway is installed and hosts are modified by adaway, dont overthrow
@@ -452,6 +788,7 @@ quick_reset_restore () {
 		echo "[+] restoring backed up hosts file!"
 		cat $PERSISTENT_DIR/bindhosts_backup > $target_hostsfile
 		rm $PERSISTENT_DIR/bindhosts_backup
+		sync_proxy_hosts
 		# store these as variables
 		# this way we dont do the grepping twice
 		custom=$( grep -vEc "0.0.0.0| localhost|#" $target_hostsfile)
@@ -466,7 +803,8 @@ quick_reset_restore () {
 		# localhost
 		printf "127.0.0.1 localhost\n::1 localhost\n" > $target_hostsfile
 		# always restore user's custom rules
-		sed 's/#.*//; /^$/d; s/^disabled|//g' $PERSISTENT_DIR/custom*.txt >> $target_hostsfile
+		rule_filter "$HOSTS_DIR/custom.txt" "$HOSTS_IMPORTED"/*.txt >> $target_hostsfile 2>/dev/null
+		sync_proxy_hosts
 		string="description=status: reset 🤐 | $(date)"
 		echo "[+] hosts file reset!"
 	fi
@@ -493,32 +831,51 @@ action () {
 	# now make sure its not there and write our own pid to it
 	rm "$rwdir/bindhosts_lockfile" >/dev/null 2>&1 ; echo $$ > "$rwdir/bindhosts_lockfile"
 
-	# toggle start!
-	if [ -f $PERSISTENT_DIR/bindhosts_state ]; then
-		# handle rule changes, add date change detect, I guess a change of 1 day to update is sane.
-		newhash=$( (cat $PERSISTENT_DIR/*.txt; date +%F) | busybox crc32 )
-		oldhash=$(cat $PERSISTENT_DIR/bindhosts_state)
-		if [ "$newhash" = "$oldhash" ]; then
-			if grep -q "generated by AdAway" /system/etc/hosts; then
-				# avoid quick reset when switching from AdAway
-				run
-			else
-				# well if theres no rule change
-				# we can have user toggle onto reset/restore
-				quick_reset_restore
-			fi
+
+	h_state=$(read_state hosts 1)
+	p_state=$(read_state proxy 0)
+	[ -n "$arg_hosts" ] && h_state="$arg_hosts"
+	[ -n "$arg_proxy" ] && p_state="$arg_proxy"
+	write_state "$h_state" "$p_state"
+	echo "[*] state: hosts=$h_state proxy=$p_state"
+
+	# The proxy block must run before the hosts block.
+	# Order: product -> daemon -> hosts. The proxy has to be ready before the
+	# domain starts pointing at 127.0.0.1. Done the other way round, the app hits
+	# a dead port between the hosts write and the daemon bind, and stays offline
+	# for good if the daemon never comes up.
+	if [ "$p_state" = "1" ]; then
+		if [ "$(cat "$PERSISTENT_DIR/proxy_state" 2>/dev/null)" != "$(proxy_hash)" ] \
+			|| [ ! -s "$PROXY_PRODUCT" ] ; then
+			echo "[+] proxy: rule or state changed, applying"
+			build_proxy_product
+			ensure_proxy_running 1 || echo "[x] proxy unavailable, hosts entry will be skipped"
 		else
-			echo "[+] rule change detected!"
-			echo "[*] new: $newhash"
-			echo "[*] old: $oldhash"
-			run
+			echo "[+] proxy: no change"
+			ensure_proxy_running 0 || echo "[x] proxy unavailable, hosts entry will be skipped"
 		fi
 	else
-		# basically if no bindhosts_state and hosts file is marked just update, its a reinstall
-		grep -q "# bindhosts v" $target_hostsfile && echo "[+] update triggered!"
-		# normal flow
-		run
+		# Switching off stops the daemon at once and releases 127.0.0.1:443.
+		if pidof bindhosts-proxy >/dev/null 2>&1 ; then
+			echo "[+] proxy: disabled, stopping daemon"
+			pkill -f bindhosts-proxy 2>/dev/null
+		else
+			echo "[+] proxy: disabled"
+		fi
 	fi
+
+	# hosts block
+	if [ "$(cat "$PERSISTENT_DIR/bindhosts_state" 2>/dev/null)" != "$(hosts_hash)" ]; then
+		echo "[+] hosts: rule or state changed, applying"
+		run_hosts
+	else
+		echo "[+] hosts: no change"
+	fi
+
+	# Reconcile the proxy entries regardless of whether hosts was rebuilt.
+	# run_hosts calls this too, but it is skipped entirely when the hash is
+	# unchanged, which would leave missing entries unrepaired forever.
+	sync_proxy_hosts
 
 	# cleanup lockfile
 	[ -f "$rwdir/bindhosts_lockfile" ] && rm "$rwdir/bindhosts_lockfile" > /dev/null 2>&1
@@ -568,7 +925,7 @@ instant_whitelist() {
 	[ -n "$1" ] || return
 	cp $target_hostsfile $rwdir/temphosts
 	sed "/0.0.0.0 $1/d" $rwdir/temphosts > $target_hostsfile
-	grep -qx "$1" "$PERSISTENT_DIR/whitelist.txt" || echo "$1" >> "$PERSISTENT_DIR/whitelist.txt"
+	grep -qx "$1" "$HOSTS_DIR/whitelist.txt" || echo "$1" >> "$HOSTS_DIR/whitelist.txt"
 	rm $rwdir/temphosts
 }
 
@@ -680,7 +1037,23 @@ show_help () {
 
 # add arguments
 case "$1" in 
-	--action) action; exit ;;
+	# Reconcile only the proxy entries in hosts: no rebuild, no source download.
+	# Used by the watchdog after the daemon starts, exits, or gives up.
+	--sync-proxy)
+		sync_proxy_hosts
+		exit 0
+		;;
+	--action)
+		shift
+		while [ $# -gt 0 ]; do
+			case "$1" in
+				--hosts) arg_hosts="$2"; shift 2 ;;
+				--proxy) arg_proxy="$2"; shift 2 ;;
+				*) shift ;;
+			esac
+		done
+		action
+		exit ;;
 	--tcpdump) tcpdump; exit ;;
 	--stop-tcpdump) stop_tcpdump; exit ;;
 	--query) hosts_query "$@"; exit ;;

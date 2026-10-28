@@ -123,4 +123,11 @@
     <string name="backup_restore_invalid_config">Μη έγκυρη ρύθμιση bindhosts</string>
     <string name="backup_restore_restored">Οι ρυθμίσεις επαναφέρθηκαν με επιτυχία</string>
     <string name="backup_restore_restore_fail">Αποτυχία επαναφοράς ρυθμίσεων</string>
+    <string name="query_proxy_action">Ενέργεια</string>
+    <string name="query_proxy_path">Διαδρομή</string>
+    <string name="query_proxy_title">Ερώτημα διακομιστή μεσολάβησης</string>
+    <string name="query_proxy_empty">Δεν έχουν εφαρμοστεί ακόμη κανόνες διακομιστή μεσολάβησης</string>
+    <string name="import_reject_in_hosts">Αυτό είναι αρχείο κανόνων proxy, εισαγάγετέ το στην προβολή Proxy</string>
+    <string name="import_reject_in_proxy">Αυτό είναι αρχείο κανόνων hosts, εισαγάγετέ το στην προβολή Hosts</string>
+    <string name="more_proxy">Κανόνες proxy</string>
 </resources>
