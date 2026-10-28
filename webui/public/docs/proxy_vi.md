@@ -55,6 +55,15 @@ quy tắc sẽ được chuyển tiếp.
 `proxy/cache/` và dùng lại khi mọi lần tải đều thất bại, nên chạy ngoại tuyến vẫn
 tạo ra bộ quy tắc gần nhất.
 
+## Bộ quy tắc tải về là chỉ đọc
+
+Các quy tắc lấy từ `sources.txt` được hợp nhất vào sản phẩm nhưng không thể sửa
+trong WebUI. Trang truy vấn gắn thẻ `SRC` cho chúng và không có nút xóa. Để ngừng
+dùng một quy tắc đã tải, hãy xóa URL của nó khỏi `sources.txt`.
+
+Chế độ xem Hosts có nút trên các dòng `SRC`, nhưng nút đó cũng không xóa gì: nó
+thêm tên miền vào `hosts/whitelist.txt` để lần dựng lại sau bỏ qua.
+
 ## Danh sách trắng và danh sách đen
 
 Cả hai đều là chế độ xem của `proxy/custom.txt`:

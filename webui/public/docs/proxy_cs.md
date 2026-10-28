@@ -56,6 +56,15 @@ se předávají dál.
 `proxy/cache/` a použije se, když všechna stahování selžou, takže offline běh stále
 vytvoří poslední známou sadu pravidel.
 
+## Stažené sady pravidel jsou jen pro čtení
+
+Pravidla ze `sources.txt` se sloučí do produktu, ale v WebUI je nelze upravovat.
+Stránka dotazů je označuje štítkem `SRC` a nenabízí tlačítko smazání. Chcete-li
+stažené pravidlo vypnout, odeberte jeho URL ze `sources.txt`.
+
+Zobrazení Hosts má u řádků `SRC` tlačítko, ale ani to nic nemaže: zapíše doménu do
+`hosts/whitelist.txt`, aby ji příští sestavení přeskočilo.
+
 ## Bílý a černý seznam
 
 Oba jsou zobrazení `proxy/custom.txt`:

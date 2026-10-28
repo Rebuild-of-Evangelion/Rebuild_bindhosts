@@ -57,6 +57,16 @@ sin regla se reenvían.
 `proxy/cache/` y se reutilizan cuando todas fallan, así que una ejecución sin conexión
 sigue produciendo el último conjunto conocido.
 
+## Los conjuntos de reglas descargados son de solo lectura
+
+Las reglas obtenidas de `sources.txt` se fusionan en el producto pero no se pueden
+editar en el WebUI. La página de consulta las marca con `SRC` y no ofrece botón de
+borrado. Para dejar de usar una regla descargada, quita su URL de `sources.txt`.
+
+La vista Hosts sí muestra un botón en las filas `SRC`, pero tampoco borra nada:
+añade el dominio a `hosts/whitelist.txt` para que la próxima reconstrucción lo
+omita.
+
 ## Lista blanca y lista negra
 
 Ambas son vistas sobre `proxy/custom.txt`:

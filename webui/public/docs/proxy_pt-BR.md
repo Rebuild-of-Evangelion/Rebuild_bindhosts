@@ -57,6 +57,15 @@ Caminhos sem regra são repassados.
 `proxy/cache/` e reutilizados quando todos falham, então uma execução offline ainda
 produz o último conjunto conhecido.
 
+## Conjuntos de regras baixados são somente leitura
+
+As regras obtidas de `sources.txt` são mescladas no produto, mas não podem ser
+editadas no WebUI. A página de consulta as marca com `SRC` e não oferece botão de
+exclusão. Para desativar uma regra baixada, remova a URL dela de `sources.txt`.
+
+A visão Hosts mostra um botão nas linhas `SRC`, mas ele também não exclui nada:
+adiciona o domínio a `hosts/whitelist.txt` para que a próxima reconstrução o ignore.
+
 ## Lista branca e lista negra
 
 Ambas são visões sobre `proxy/custom.txt`:

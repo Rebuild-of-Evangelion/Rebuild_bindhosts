@@ -57,6 +57,17 @@ passende Regel werden weitergeleitet.
 zwischengespeichert und wiederverwendet, wenn alle Downloads fehlschlagen — ein
 Offline-Lauf liefert also den zuletzt bekannten Regelsatz.
 
+## Heruntergeladene Regelsätze sind schreibgeschützt
+
+Regeln aus `sources.txt` werden in das Produkt eingemischt, lassen sich im WebUI
+aber nicht bearbeiten. Die Abfrageseite markiert sie mit `SRC` und bietet keine
+Löschschaltfläche. Um eine heruntergeladene Regel zu deaktivieren, entferne ihre
+URL aus `sources.txt`.
+
+Die Hosts-Ansicht zeigt bei `SRC`-Zeilen eine Schaltfläche, aber auch die löscht
+nichts — sie schreibt die Domain in `hosts/whitelist.txt`, damit der nächste
+Neuaufbau sie überspringt.
+
 ## Whitelist und Blacklist
 
 Beide sind Ansichten auf `proxy/custom.txt`:

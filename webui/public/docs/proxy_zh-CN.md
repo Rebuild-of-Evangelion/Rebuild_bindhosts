@@ -49,6 +49,15 @@ block   /ads/*
 `proxy/sources.txt` 一行一个 URL。下载内容会缓存到 `proxy/cache/`，
 所有下载都失败时用缓存重建，所以断网也能得到上次的规则集。
 
+## 下载的规则集是只读的
+
+`sources.txt` 下载的规则会合并进产物，但 WebUI 里不能编辑。
+查询页给它们标 `SRC`，不提供删除按钮。要停用某条下载来的规则，
+把它的 URL 从 `sources.txt` 里去掉。
+
+Hosts 查询页的 `SRC` 条目有个按钮，但那也不是删除——它把域名写进
+`hosts/whitelist.txt`，下次重建时跳过。
+
 ## 白名单与黑名单
 
 两者都是 `proxy/custom.txt` 的视图：

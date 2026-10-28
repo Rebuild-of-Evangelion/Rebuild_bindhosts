@@ -57,6 +57,16 @@ aturan akan diteruskan.
 dan dipakai ulang saat semua unduhan gagal, jadi proses offline tetap menghasilkan
 kumpulan aturan terakhir.
 
+## Kumpulan aturan yang diunduh bersifat hanya-baca
+
+Aturan dari `sources.txt` digabungkan ke produk tetapi tidak dapat diedit di WebUI.
+Halaman kueri menandainya dengan `SRC` dan tidak menyediakan tombol hapus. Untuk
+menonaktifkan aturan yang diunduh, hapus URL-nya dari `sources.txt`.
+
+Tampilan Hosts menampilkan tombol pada baris `SRC`, tetapi tombol itu juga tidak
+menghapus apa pun: ia menambahkan domain ke `hosts/whitelist.txt` agar pembangunan
+ulang berikutnya melewatinya.
+
 ## Whitelist dan blacklist
 
 Keduanya adalah tampilan dari `proxy/custom.txt`:

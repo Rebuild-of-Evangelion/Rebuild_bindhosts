@@ -57,6 +57,17 @@ l'emporte. Les chemins sans règle correspondante sont transmis.
 dans `proxy/cache/` et réutilisés quand tous les téléchargements échouent : une
 exécution hors ligne produit donc le dernier jeu de règles connu.
 
+## Les jeux de règles téléchargés sont en lecture seule
+
+Les règles récupérées depuis `sources.txt` sont fusionnées dans le produit mais ne
+peuvent pas être modifiées dans le WebUI. La page de requête les marque `SRC` et
+ne propose pas de bouton de suppression. Pour désactiver une règle téléchargée,
+retirez son URL de `sources.txt`.
+
+La vue Hosts affiche bien un bouton sur les lignes `SRC`, mais il ne supprime rien
+non plus : il ajoute le domaine à `hosts/whitelist.txt` pour que la prochaine
+reconstruction l'ignore.
+
 ## Liste blanche et liste noire
 
 Les deux sont des vues sur `proxy/custom.txt` :

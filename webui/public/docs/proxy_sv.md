@@ -57,6 +57,15 @@ skickas vidare.
 återanvänds när alla nedladdningar misslyckas, så en offlinekörning ger fortfarande
 den senast kända regelmängden.
 
+## Nedladdade regelmängder är skrivskyddade
+
+Regler från `sources.txt` slås samman i produkten men kan inte redigeras i WebUI.
+Förfrågningssidan markerar dem med `SRC` och erbjuder ingen raderingsknapp. För att
+sluta använda en nedladdad regel tar du bort dess URL från `sources.txt`.
+
+Hosts-vyn visar en knapp på `SRC`-rader, men inte heller den raderar något: den
+lägger till domänen i `hosts/whitelist.txt` så att nästa ombyggnad hoppar över den.
+
 ## Vitlista och svartlista
 
 Båda är vyer över `proxy/custom.txt`:

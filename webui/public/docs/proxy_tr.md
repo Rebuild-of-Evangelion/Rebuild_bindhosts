@@ -55,6 +55,17 @@ yollar iletilir.
 önbelleğe alınır ve tüm indirmeler başarısız olduğunda yeniden kullanılır, böylece
 çevrimdışı bir çalıştırma son bilinen kural kümesini yine üretir.
 
+## İndirilen kural kümeleri salt okunur
+
+`sources.txt` dosyasından alınan kurallar ürüne birleştirilir ancak WebUI'de
+düzenlenemez. Sorgu sayfası bunları `SRC` etiketiyle listeler ve silme düğmesi
+sunmaz. İndirilen bir kuralı devre dışı bırakmak için URL'sini `sources.txt`
+dosyasından çıkar.
+
+Hosts görünümünde `SRC` satırlarında bir düğme var ama o da hiçbir şey silmez:
+alan adını `hosts/whitelist.txt` dosyasına ekler, böylece sonraki yeniden
+oluşturma onu atlar.
+
 ## Beyaz liste ve kara liste
 
 İkisi de `proxy/custom.txt` üzerinde birer görünümdür:

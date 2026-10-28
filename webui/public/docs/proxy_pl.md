@@ -57,6 +57,15 @@ reguły są przekazywane dalej.
 `proxy/cache/` i używane, gdy wszystkie pobrania zawiodą, więc uruchomienie offline
 nadal daje ostatni znany zestaw reguł.
 
+## Pobrane zestawy reguł są tylko do odczytu
+
+Reguły pobrane z `sources.txt` trafiają do produktu, ale nie można ich edytować w
+WebUI. Strona zapytań oznacza je tagiem `SRC` i nie oferuje przycisku usuwania.
+Aby wyłączyć pobraną regułę, usuń jej URL z `sources.txt`.
+
+W widoku Hosts wiersze `SRC` mają przycisk, ale on też niczego nie usuwa: dopisuje
+domenę do `hosts/whitelist.txt`, żeby kolejne przebudowanie ją pominęło.
+
 ## Biała i czarna lista
 
 Obie są widokami na `proxy/custom.txt`:

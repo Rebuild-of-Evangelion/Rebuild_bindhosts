@@ -57,6 +57,15 @@ matching rule are forwarded.
 `proxy/cache/` and reused when every download fails, so an offline run still
 produces the last known rule set.
 
+## Downloaded rule sets are read-only
+
+Rules fetched from `sources.txt` are merged into the product but cannot be edited
+in the WebUI. The query page lists them with an `SRC` tag and offers no delete
+button. To stop using a downloaded rule, remove its URL from `sources.txt`.
+
+The Hosts view does show a button on `SRC` rows, but it does not delete the rule
+either — it adds the domain to `hosts/whitelist.txt` so the next rebuild skips it.
+
 ## Whitelist and blacklist
 
 Both are views over `proxy/custom.txt`:

@@ -57,6 +57,17 @@ percorsi senza regola vengono inoltrati.
 `proxy/cache/` e riutilizzati quando tutti falliscono, così un'esecuzione offline
 produce comunque l'ultimo set conosciuto.
 
+## I set di regole scaricati sono di sola lettura
+
+Le regole recuperate da `sources.txt` vengono unite nel prodotto ma non sono
+modificabili nel WebUI. La pagina di query le contrassegna con `SRC` e non offre un
+pulsante di eliminazione. Per disattivare una regola scaricata, rimuovi il suo URL
+da `sources.txt`.
+
+La vista Hosts mostra un pulsante sulle righe `SRC`, ma anche quello non elimina
+nulla: aggiunge il dominio a `hosts/whitelist.txt` così la prossima ricostruzione
+lo salta.
+
 ## Lista bianca e lista nera
 
 Entrambe sono viste su `proxy/custom.txt`:
