@@ -301,7 +301,7 @@ export const PAGE_CONFIG = {
  * @param {string} [terminalId=null] - ID of the active terminal
  * @param {boolean} [isOpen=false] - Whether the terminal is open
  */
-export function updateUIVisibility(terminalId = null, isOpen = false) {
+export function updateUIVisibility(menuId = null, isOpen = false) {
     const activePage = document.querySelector('.body-content[data-active="true"]');
     if (!activePage) return;
     
@@ -324,7 +324,7 @@ export function updateUIVisibility(terminalId = null, isOpen = false) {
         document.querySelector(selector)?.classList.remove('show');
     });
 
-    if (isOpen && terminalId) {
+    if (isOpen && menuId) {
         // Hiding all FAB containers
         document.querySelectorAll('.fab-container').forEach(c => c.classList.remove('show', 'inTerminal'));
         
@@ -337,7 +337,7 @@ export function updateUIVisibility(terminalId = null, isOpen = false) {
         (config.main || []).forEach(id => document.querySelector(id)?.classList.remove('show'));
 
         // Show terminal specific buttons from the current page config
-        const terminalConfig = config.terminals?.[terminalId];
+        const terminalConfig = config.terminals?.[menuId];
         if (terminalConfig) {
             terminalConfig.buttons?.forEach(id => document.querySelector(id)?.classList.add('show'));
             if (terminalConfig.title) {
@@ -365,6 +365,14 @@ export function updateUIVisibility(terminalId = null, isOpen = false) {
             }
         }
         if (backBtn) backBtn.classList.remove('show');
+    }
+
+    // The header switcher belongs to the rules page only, and it must stay
+    // hidden while any slide-menu covers the content area. Handling it here
+    // covers every menu instead of each open/close call site.
+    const switcher = document.getElementById('rules-switcher');
+    if (switcher) {
+        switcher.classList.toggle('show', !isOpen && pageId === 'page-hosts');
     }
 }
 

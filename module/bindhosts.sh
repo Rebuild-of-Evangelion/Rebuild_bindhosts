@@ -499,8 +499,12 @@ sync_proxy_hosts() {
 build_proxy_product() {
 	echo "[+] processing proxy rules"
 	rm -f "$rwdir/proxysrc"
+	# Only a configured source that failed may fall back to the cache.
+	# Emptying sources.txt is not a download failure, so the stale cache
+	# must not come back and resurrect rules the user just removed.
+	proxy_urls=$(rule_filter "$PROXY_DIR/sources.txt" | grep http)
 	proxy_ok=0
-	for url in $(rule_filter "$PROXY_DIR/sources.txt" | grep http) ; do
+	for url in $proxy_urls ; do
 		echo "[>] fetching $url"
 		if download "$url" >> "$rwdir/proxysrc"; then
 			proxy_ok=1
@@ -510,7 +514,7 @@ build_proxy_product() {
 	done
 	if [ "$proxy_ok" = 1 ]; then
 		cp -f "$rwdir/proxysrc" "$PROXY_DIR/cache/sources.txt" 2>/dev/null
-	elif [ -s "$PROXY_DIR/cache/sources.txt" ]; then
+	elif [ -n "$proxy_urls" ] && [ -s "$PROXY_DIR/cache/sources.txt" ]; then
 		echo "[!] all proxy sources failed, using cache"
 		cp -f "$PROXY_DIR/cache/sources.txt" "$rwdir/proxysrc"
 	fi

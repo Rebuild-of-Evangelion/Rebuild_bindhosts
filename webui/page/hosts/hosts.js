@@ -418,7 +418,13 @@ async function handleAdd(fileType, prompt) {
             await exec(`echo "${line}" >> ${basePath}/${filePaths[fileType]}`);
         }
         inputElement.value = ""; // Clear input if add successful
-        loadFile(fileType);
+        // In the proxy view custom / blacklist / whitelist all read proxy/custom.txt
+        // and differ only by the action filter, so one edit changes all three.
+        if (currentView === 'proxy') {
+            reloadAllLists();
+        } else {
+            loadFile(fileType);
+        }
     } catch(error) {
         console.error(`Failed to process input for ${fileType}: ${error}`);
     }
@@ -643,8 +649,6 @@ function runBindhosts(args, onExit) {
     const closeTerminal = () => {
         if (!isTerminalOpen) return;
         terminal.close();
-        // Back on the Rules page, restore the header switcher
-        document.getElementById('rules-switcher')?.classList.add('show');
         setTimeout(() => {
             isTerminalOpen = false;
         }, 100);
@@ -654,8 +658,6 @@ function runBindhosts(args, onExit) {
     setTimeout(() => {
         isTerminalOpen = true;
         terminal.open();
-        // The terminal slides out below the header and cannot cover it, so hide the switcher
-        document.getElementById('rules-switcher')?.classList.remove('show');
         closeBtn.classList.remove('show');
         backButton.onclick = () => closeTerminal();
     }, 50);

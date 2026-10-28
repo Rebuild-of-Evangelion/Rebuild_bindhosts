@@ -50,6 +50,33 @@ take_snapshot() {
 	return 0
 }
 
+# Signature of the files a view owns right now: name plus content, hashed.
+current_sig() {
+	(
+		cd "$PERSISTENT_DIR" 2>/dev/null || exit 0
+		for f in "$1"/*.txt "$1"/imported/*.txt "$1"/imported/*.txt.disabled ; do
+			[ -f "$f" ] || continue
+			echo "== $f"
+			cat "$f" 2>/dev/null
+		done
+	) | md5sum | awk '{print $1}'
+}
+
+# Same signature over the snapshot. Snapshots keep paths relative to the view
+# root, so the prefix is added back to make both sides comparable.
+snapshot_sig() {
+	_d="$DRAFT_ROOT/$1/files"
+	[ -d "$_d" ] || { echo none; return 0 ; }
+	(
+		cd "$_d" 2>/dev/null || exit 0
+		for f in *.txt imported/*.txt imported/*.txt.disabled ; do
+			[ -f "$f" ] || continue
+			echo "== $1/$f"
+			cat "$f" 2>/dev/null
+		done
+	) | md5sum | awk '{print $1}'
+}
+
 discard_view() {
 	_view="$1"
 	_d="$DRAFT_ROOT/$_view"
@@ -97,9 +124,19 @@ clear)
 	;;
 status)
 	if [ -n "$2" ] ; then
-		[ -f "$DRAFT_ROOT/$2/dirty" ] && echo dirty || echo clean
+		if [ -f "$DRAFT_ROOT/$2/dirty" ] ; then
+			# A dirty flag alone is not enough: editing and then reverting
+			# leaves the files identical, which is not a pending change.
+			[ "$(current_sig "$2")" = "$(snapshot_sig "$2")" ] && echo clean || echo dirty
+		else
+			echo clean
+		fi
 	elif [ -f "$DRAFT_ROOT/hosts/dirty" ] || [ -f "$DRAFT_ROOT/proxy/dirty" ] ; then
-		echo dirty
+		for _v in hosts proxy ; do
+			[ -f "$DRAFT_ROOT/$_v/dirty" ] || continue
+			[ "$(current_sig "$_v")" != "$(snapshot_sig "$_v")" ] && { echo dirty ; exit 0 ; }
+		done
+		echo clean
 	else
 		echo clean
 	fi
