@@ -30,6 +30,7 @@ bindhosts 可以跑一个本地 TLS 反代，拦截你列出的域名的请求�
 
 ```
 mock    <path> [body]     本地返回 body
+patch   <path> <json>     替换同名键的值后转发
 forward <path>            原样转发给真实服务器
 block   <path>            直接断开连接
 ```
@@ -38,9 +39,13 @@ block   <path>            直接断开连接
 
 ```
 mock    /api/version {"code":0,"data":{"haveUpdate":false}}
+patch   /api/* {"appVersion":"9.9.9"}
 forward /api/*
 block   /ads/*
 ```
+
+`patch` 只替换 JSON 里同名键的值，请求体其余字节原样保留——字段顺序、数字格式、
+空格都不变。`patch` 规则本身包含转发，同一条路径不要再写 `forward`。
 
 按文件顺序匹配，第一条命中即生效。没有规则命中的路径默认转发。
 
@@ -48,6 +53,15 @@ block   /ads/*
 
 `proxy/sources.txt` 一行一个 URL。下载内容会缓存到 `proxy/cache/`，
 所有下载都失败时用缓存重建，所以断网也能得到上次的规则集。
+
+## 下载的规则集是只读的
+
+`sources.txt` 下载的规则会合并进产物，但 WebUI 里不能编辑。
+查询页给它们标 `SRC`，不提供删除按钮。要停用某条下载来的规则，
+把它的 URL 从 `sources.txt` 里去掉。
+
+Hosts 查询页的 `SRC` 条目也没有按钮：下载来的规则无法从查询页移除。
+要停用某条，把它的 URL 从 `sources.txt` 里去掉。
 
 ## 白名单与黑名单
 

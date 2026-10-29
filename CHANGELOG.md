@@ -26,8 +26,11 @@ Systemless hosts for APatch, KernelSU and Magisk
 
 #### Proxy
 - local TLS proxy that rewrites or blocks API responses per URL path
-- rule syntax: `mock <path> [body]`, `forward <path>`, `block <path>`; a trailing
-  `*` means prefix match
+- rule syntax: `mock <path> [body]`, `patch <path> <json>`, `forward <path>`,
+  `block <path>`; a trailing `*` means prefix match
+- `patch` replaces matching keys in the request body before forwarding, touching
+  only those bytes so field order and number formatting survive
+- the Go source lives in `proxy/`, so the binary can be rebuilt from a checkout
 - the CA is generated on device at first enable; the private key never ships with
   the module
 - serve HTTP/2 alongside HTTP/1.1
