@@ -760,7 +760,12 @@ run_hosts() {
 
 run() {
 	# Same order as action(): bring the proxy up before writing hosts.
-	[ "$(read_state proxy 0)" = "1" ] && run_proxy
+	if [ "$(read_state proxy 0)" = "1" ]; then
+		run_proxy
+	else
+		# Same as action(): empty the product, keep the file.
+		: > "$PROXY_PRODUCT"
+	fi
 	run_hosts
 	return 0
 }
@@ -866,6 +871,9 @@ action () {
 		else
 			echo "[+] proxy: disabled"
 		fi
+		# Empty the product instead of deleting it, same as the hosts file:
+		# disabled means no rules, not a missing file.
+		: > "$PROXY_PRODUCT"
 	fi
 
 	# hosts block

@@ -422,15 +422,8 @@ async function getProxyRules() {
     const hostList = document.querySelector('.proxy-list-item');
     hostList.innerHTML = '';
 
-    // The product file survives a disable, but its rules are not in effect, so hide them
-    const state = await fetchText('link/PERSISTENT_DIR/rules_state', `${basePath}/rules_state`).catch(() => '');
-    const enabled = (state || '').split('\n').some(line => line.trim() === 'proxy=1');
-    if (!enabled) {
-        proxyRules = [];
-        renderProxyRules(proxyRules);
-        return;
-    }
-
+    // bindhosts.sh removes the product when the proxy is off, so an empty read
+    // already means "nothing applied" and no state check is needed.
     const text = await fetchText('link/PERSISTENT_DIR/proxy.rules', `${basePath}/proxy.rules`).catch(() => '');
     if (queryMode !== 'proxy') return;
 
@@ -644,6 +637,9 @@ export function onShow() {
     checkDevOption();
     // only reload the query list when hosts was actually regenerated
     if (consumeHostsStale()) loadSourceIndex().then(getHosts);
+    // The proxy product is rebuilt on apply too and has no staleness flag, so
+    // reload it whenever its tab is the one on screen.
+    if (queryMode === 'proxy') getProxyRules();
 }
 
 // Lifecycle: Each time page is hidden
