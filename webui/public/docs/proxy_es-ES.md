@@ -36,6 +36,7 @@ convierte en coincidencia por prefijo.
 
 ```
 mock    <path> [body]     responder localmente con body
+patch   <path> <json>     reemplaza los valores de las claves y reenvía
 forward <path>            pasar la petición al servidor real
 block   <path>            cerrar la conexión
 ```
@@ -44,9 +45,15 @@ Ejemplo:
 
 ```
 mock    /api/version {"code":0,"data":{"haveUpdate":false}}
+patch   /api/* {"appVersion":"9.9.9"}
 forward /api/*
 block   /ads/*
 ```
+
+`patch` solo reemplaza el valor de las claves del mismo nombre y deja intactos
+los demás bytes del cuerpo — se conservan el orden de campos, el formato de
+números y los espacios. Una regla `patch` también reenvía, no añadas un `forward`
+para la misma ruta.
 
 Las reglas se evalúan en orden del archivo y gana la primera coincidencia. Las rutas
 sin regla se reenvían.

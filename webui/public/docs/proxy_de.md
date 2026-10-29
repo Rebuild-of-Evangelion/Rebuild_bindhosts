@@ -36,6 +36,7 @@ Eine Regel pro Zeile. `<path>` wird gegen den Anfragepfad geprüft; ein abschlie
 
 ```
 mock    <path> [body]     lokal mit body antworten
+patch   <path> <json>     Werte gleichnamiger Schlüssel ersetzen, dann weiterleiten
 forward <path>            Anfrage an den echten Server weiterreichen
 block   <path>            Verbindung schließen
 ```
@@ -44,9 +45,15 @@ Beispiel:
 
 ```
 mock    /api/version {"code":0,"data":{"haveUpdate":false}}
+patch   /api/* {"appVersion":"9.9.9"}
 forward /api/*
 block   /ads/*
 ```
+
+`patch` ersetzt nur den Wert gleichnamiger Schlüssel und lässt jedes andere Byte
+des Bodys unberührt — Feldreihenfolge, Zahlenformat und Leerzeichen bleiben
+erhalten. `patch` leitet ebenfalls weiter, also keine separate `forward`-Regel für
+denselben Pfad anlegen.
 
 Regeln werden in Dateireihenfolge geprüft, der erste Treffer gewinnt. Pfade ohne
 passende Regel werden weitergeleitet.

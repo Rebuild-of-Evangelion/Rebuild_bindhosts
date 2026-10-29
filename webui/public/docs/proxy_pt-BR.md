@@ -36,6 +36,7 @@ torna a correspondência por prefixo.
 
 ```
 mock    <path> [body]     responder localmente com body
+patch   <path> <json>     substitui os valores das chaves e repassa
 forward <path>            repassar a requisição ao servidor real
 block   <path>            fechar a conexão
 ```
@@ -44,9 +45,15 @@ Exemplo:
 
 ```
 mock    /api/version {"code":0,"data":{"haveUpdate":false}}
+patch   /api/* {"appVersion":"9.9.9"}
 forward /api/*
 block   /ads/*
 ```
+
+`patch` substitui apenas o valor das chaves de mesmo nome e deixa os demais bytes
+do corpo intactos — ordem dos campos, formato dos números e espaços são
+preservados. Uma regra `patch` também repassa, não adicione um `forward` para o
+mesmo caminho.
 
 As regras são avaliadas na ordem do arquivo e a primeira correspondência vence.
 Caminhos sem regra são repassados.

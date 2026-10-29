@@ -34,6 +34,7 @@ thành khớp tiền tố.
 
 ```
 mock    <path> [body]     trả lời tại máy bằng body
+patch   <path> <json>     thay giá trị của khóa rồi chuyển tiếp
 forward <path>            chuyển tiếp tới máy chủ thật
 block   <path>            đóng kết nối
 ```
@@ -42,9 +43,14 @@ Ví dụ:
 
 ```
 mock    /api/version {"code":0,"data":{"haveUpdate":false}}
+patch   /api/* {"appVersion":"9.9.9"}
 forward /api/*
 block   /ads/*
 ```
+
+`patch` chỉ thay giá trị của các khóa cùng tên, các byte còn lại của body giữ
+nguyên — thứ tự trường, định dạng số và khoảng trắng đều được bảo toàn. Quy tắc
+`patch` cũng chuyển tiếp, đừng thêm `forward` riêng cho cùng đường dẫn.
 
 Quy tắc được xét theo thứ tự trong tệp, khớp đầu tiên sẽ thắng. Đường dẫn không có
 quy tắc sẽ được chuyển tiếp.

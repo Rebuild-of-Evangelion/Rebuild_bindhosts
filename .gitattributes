@@ -1,3 +1,9 @@
 ** text eol=lf
 *.png binary
 *.gif binary
+
+# binaries: never touch line endings
+*.apk binary
+*.zip binary
+*.so binary
+module/bin/* binary

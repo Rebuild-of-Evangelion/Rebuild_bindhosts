@@ -35,6 +35,7 @@ udělá shodu prefixem.
 
 ```
 mock    <path> [body]     odpovědět lokálně tělem body
+patch   <path> <json>     nahradit hodnoty klíčů a předat dál
 forward <path>            předat požadavek skutečnému serveru
 block   <path>            uzavřít spojení
 ```
@@ -43,9 +44,14 @@ Příklad:
 
 ```
 mock    /api/version {"code":0,"data":{"haveUpdate":false}}
+patch   /api/* {"appVersion":"9.9.9"}
 forward /api/*
 block   /ads/*
 ```
+
+`patch` nahradí jen hodnotu stejnojmenných klíčů, ostatní bajty těla zůstanou
+nedotčené — pořadí polí, formát čísel i mezery se zachovají. Pravidlo `patch`
+také předává, nepřidávejte samostatné `forward` pro stejnou cestu.
 
 Pravidla se vyhodnocují v pořadí v souboru, vyhrává první shoda. Cesty bez pravidla
 se předávají dál.

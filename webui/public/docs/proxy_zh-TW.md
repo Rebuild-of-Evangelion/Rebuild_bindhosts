@@ -30,6 +30,7 @@ bindhosts 可以執行一個本機 TLS 反向代理，攔截你列出的網域�
 
 ```
 mock    <path> [body]     本機回傳 body
+patch   <path> <json>     替換同名鍵的值後轉發
 forward <path>            原樣轉發給真實伺服器
 block   <path>            直接斷開連線
 ```
@@ -38,9 +39,13 @@ block   <path>            直接斷開連線
 
 ```
 mock    /api/version {"code":0,"data":{"haveUpdate":false}}
+patch   /api/* {"appVersion":"9.9.9"}
 forward /api/*
 block   /ads/*
 ```
+
+`patch` 只替換 JSON 裡同名鍵的值，請求體其餘位元組原樣保留——欄位順序、數字格式、
+空白都不變。`patch` 規則本身包含轉發，同一條路徑不要再寫 `forward`。
 
 依檔案順序匹配，第一條命中即生效。沒有規則命中的路徑預設轉發。
 

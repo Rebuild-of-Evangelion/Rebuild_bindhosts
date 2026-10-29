@@ -526,7 +526,7 @@ build_proxy_product() {
 		$0 == "" { next }
 		# Keep hosts lines in the product: the proxy uses them as its allowed list.
 		$1 ~ /^[0-9]/ { print; next }
-		$1 !~ /^(mock|forward|block)$/ {
+		$1 !~ /^(mock|forward|block|patch)$/ {
 			printf "[!] unknown action, skipped: %s\n", $0 >> warn
 			next
 		}

@@ -36,6 +36,7 @@ Una regola per riga. `<path>` viene confrontato con il percorso della richiesta;
 
 ```
 mock    <path> [body]     rispondere localmente con body
+patch   <path> <json>     sostituisce i valori delle chiavi, poi inoltra
 forward <path>            inoltrare la richiesta al server reale
 block   <path>            chiudere la connessione
 ```
@@ -44,9 +45,15 @@ Esempio:
 
 ```
 mock    /api/version {"code":0,"data":{"haveUpdate":false}}
+patch   /api/* {"appVersion":"9.9.9"}
 forward /api/*
 block   /ads/*
 ```
+
+`patch` sostituisce solo il valore delle chiavi omonime e lascia intatti gli
+altri byte del corpo — ordine dei campi, formato dei numeri e spazi restano
+invariati. Una regola `patch` inoltra anch'essa, non aggiungere un `forward` per
+lo stesso percorso.
 
 Le regole sono valutate nell'ordine del file e vince la prima corrispondenza. I
 percorsi senza regola vengono inoltrati.

@@ -34,6 +34,7 @@ eşleşmesi yapar.
 
 ```
 mock    <path> [body]     body ile yerel yanıt ver
+patch   <path> <json>     anahtar değerlerini değiştirip ilet
 forward <path>            isteği gerçek sunucuya ilet
 block   <path>            bağlantıyı kapat
 ```
@@ -42,9 +43,14 @@ block   <path>            bağlantıyı kapat
 
 ```
 mock    /api/version {"code":0,"data":{"haveUpdate":false}}
+patch   /api/* {"appVersion":"9.9.9"}
 forward /api/*
 block   /ads/*
 ```
+
+`patch` yalnızca aynı adlı anahtarların değerini değiştirir, gövdenin diğer
+baytları olduğu gibi kalır — alan sırası, sayı biçimi ve boşluklar korunur.
+`patch` kuralı aynı zamanda iletir, aynı yol için ayrıca `forward` eklemeyin.
 
 Kurallar dosya sırasına göre değerlendirilir, ilk eşleşen kazanır. Kuralı olmayan
 yollar iletilir.

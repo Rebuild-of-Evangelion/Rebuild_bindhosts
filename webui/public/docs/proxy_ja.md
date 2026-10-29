@@ -32,6 +32,7 @@ hosts は `0.0.0.0` で何を塞ぐかを決め、proxy は何をローカルで
 
 ```
 mock    <path> [body]     body をローカルで返す
+patch   <path> <json>     同名キーの値を置き換えて転送
 forward <path>            実サーバーへそのまま転送
 block   <path>            接続を閉じる
 ```
@@ -40,9 +41,14 @@ block   <path>            接続を閉じる
 
 ```
 mock    /api/version {"code":0,"data":{"haveUpdate":false}}
+patch   /api/* {"appVersion":"9.9.9"}
 forward /api/*
 block   /ads/*
 ```
+
+`patch` は JSON 内の同名キーの値だけを置き換え、ボディの他のバイトはそのまま
+残します。フィールド順・数値の書式・空白はすべて保持されます。`patch` は転送も
+兼ねるので、同じパスに `forward` を別途書かないでください。
 
 ファイル順に照合し、最初に一致したものが適用されます。一致するルールがないパスは転送されます。
 

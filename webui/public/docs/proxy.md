@@ -36,6 +36,7 @@ turns it into a prefix match.
 
 ```
 mock    <path> [body]     answer locally with body
+patch   <path> <json>     replace matching key values, then forward
 forward <path>            pass the request to the real server
 block   <path>            close the connection
 ```
@@ -44,9 +45,15 @@ Example:
 
 ```
 mock    /api/version {"code":0,"data":{"haveUpdate":false}}
+patch   /api/* {"appVersion":"9.9.9"}
 forward /api/*
 block   /ads/*
 ```
+
+`patch` replaces the value of each key in the JSON object and leaves every
+other byte of the body untouched — field order, number formatting and whitespace
+all survive. A `patch` rule also forwards, so do not add a separate `forward`
+rule for the same path.
 
 Rules are matched in file order and the first match wins. Paths without a
 matching rule are forwarded.

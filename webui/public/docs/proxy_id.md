@@ -36,6 +36,7 @@ membuatnya cocok sebagai prefiks.
 
 ```
 mock    <path> [body]     jawab secara lokal dengan body
+patch   <path> <json>     ganti nilai kunci lalu teruskan
 forward <path>            teruskan permintaan ke server asli
 block   <path>            tutup koneksi
 ```
@@ -44,9 +45,14 @@ Contoh:
 
 ```
 mock    /api/version {"code":0,"data":{"haveUpdate":false}}
+patch   /api/* {"appVersion":"9.9.9"}
 forward /api/*
 block   /ads/*
 ```
+
+`patch` hanya mengganti nilai kunci yang namanya sama, byte lain di body tidak
+berubah — urutan field, format angka, dan spasi semuanya dipertahankan. Aturan
+`patch` juga meneruskan, jangan tambahkan `forward` terpisah untuk jalur yang sama.
 
 Aturan dievaluasi sesuai urutan file dan yang pertama cocok menang. Jalur tanpa
 aturan akan diteruskan.

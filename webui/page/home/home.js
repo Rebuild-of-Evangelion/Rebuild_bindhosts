@@ -411,7 +411,7 @@ async function handleRemove(event, domains) {
 let queryMode = 'hosts';
 let proxyRules = [];
 
-const PROXY_ACTION_ORDER = { mock: 0, forward: 1, block: 2 };
+const PROXY_ACTION_ORDER = { mock: 0, patch: 1, forward: 2, block: 3 };
 
 /**
  * Read and render the proxy product

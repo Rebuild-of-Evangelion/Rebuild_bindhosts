@@ -30,6 +30,7 @@ bindhosts 可以跑一个本地 TLS 反代，拦截你列出的域名的请求�
 
 ```
 mock    <path> [body]     本地返回 body
+patch   <path> <json>     替换同名键的值后转发
 forward <path>            原样转发给真实服务器
 block   <path>            直接断开连接
 ```
@@ -38,9 +39,13 @@ block   <path>            直接断开连接
 
 ```
 mock    /api/version {"code":0,"data":{"haveUpdate":false}}
+patch   /api/* {"appVersion":"9.9.9"}
 forward /api/*
 block   /ads/*
 ```
+
+`patch` 只替换 JSON 里同名键的值，请求体其余字节原样保留——字段顺序、数字格式、
+空格都不变。`patch` 规则本身包含转发，同一条路径不要再写 `forward`。
 
 按文件顺序匹配，第一条命中即生效。没有规则命中的路径默认转发。
 

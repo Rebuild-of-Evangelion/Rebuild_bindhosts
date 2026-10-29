@@ -36,6 +36,7 @@ czyni dopasowanie prefiksowym.
 
 ```
 mock    <path> [body]     odpowiedz lokalnie treścią body
+patch   <path> <json>     podmienia wartości kluczy i przekazuje dalej
 forward <path>            przekaż żądanie do prawdziwego serwera
 block   <path>            zamknij połączenie
 ```
@@ -44,9 +45,15 @@ Przykład:
 
 ```
 mock    /api/version {"code":0,"data":{"haveUpdate":false}}
+patch   /api/* {"appVersion":"9.9.9"}
 forward /api/*
 block   /ads/*
 ```
+
+`patch` podmienia tylko wartość kluczy o tej samej nazwie, reszta bajtów treści
+pozostaje nietknięta — kolejność pól, format liczb i odstępy się nie zmieniają.
+Reguła `patch` sama przekazuje żądanie, nie dodawaj `forward` dla tej samej
+ścieżki.
 
 Reguły są sprawdzane w kolejności pliku, wygrywa pierwsze dopasowanie. Ścieżki bez
 reguły są przekazywane dalej.

@@ -36,6 +36,7 @@ till en prefixmatchning.
 
 ```
 mock    <path> [body]     svara lokalt med body
+patch   <path> <json>     ersätter värdet för nycklar och skickar vidare
 forward <path>            skicka vidare till den riktiga servern
 block   <path>            stäng anslutningen
 ```
@@ -44,9 +45,14 @@ Exempel:
 
 ```
 mock    /api/version {"code":0,"data":{"haveUpdate":false}}
+patch   /api/* {"appVersion":"9.9.9"}
 forward /api/*
 block   /ads/*
 ```
+
+`patch` ersätter bara värdet för nycklar med samma namn och lämnar övriga byte i
+kroppen orörda — fältordning, talformat och blanksteg bevaras. En `patch`-regel
+vidarebefordrar också, lägg inte till en separat `forward` för samma sökväg.
 
 Reglerna utvärderas i filordning och första träffen vinner. Sökvägar utan regel
 skickas vidare.
